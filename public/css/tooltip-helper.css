@@ -1,0 +1,174 @@
+/**
+ * Tooltip Helper Styles
+ * UI GreenMetric POLBAN
+ */
+
+.custom-tooltip {
+    position: fixed;
+    background: #2c3e50;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 250px;
+    word-wrap: break-word;
+    z-index: 10002;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.2s, transform 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.custom-tooltip.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Tooltip arrow */
+.custom-tooltip::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+/* Top position arrow */
+.custom-tooltip-top::before {
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0 6px;
+    border-color: #2c3e50 transparent transparent transparent;
+}
+
+/* Bottom position arrow */
+.custom-tooltip-bottom::before {
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px 6px;
+    border-color: transparent transparent #2c3e50 transparent;
+}
+
+/* Left position arrow */
+.custom-tooltip-left::before {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px 0 6px 6px;
+    border-color: transparent transparent transparent #2c3e50;
+}
+
+/* Right position arrow */
+.custom-tooltip-right::before {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px 6px 6px 0;
+    border-color: transparent #2c3e50 transparent transparent;
+}
+
+/* Tooltip variants */
+.custom-tooltip-info {
+    background: #17a2b8;
+}
+
+.custom-tooltip-info.custom-tooltip-top::before {
+    border-color: #17a2b8 transparent transparent transparent;
+}
+
+.custom-tooltip-info.custom-tooltip-bottom::before {
+    border-color: transparent transparent #17a2b8 transparent;
+}
+
+.custom-tooltip-info.custom-tooltip-left::before {
+    border-color: transparent transparent transparent #17a2b8;
+}
+
+.custom-tooltip-info.custom-tooltip-right::before {
+    border-color: transparent #17a2b8 transparent transparent;
+}
+
+.custom-tooltip-success {
+    background: #28a745;
+}
+
+.custom-tooltip-success.custom-tooltip-top::before {
+    border-color: #28a745 transparent transparent transparent;
+}
+
+.custom-tooltip-success.custom-tooltip-bottom::before {
+    border-color: transparent transparent #28a745 transparent;
+}
+
+.custom-tooltip-success.custom-tooltip-left::before {
+    border-color: transparent transparent transparent #28a745;
+}
+
+.custom-tooltip-success.custom-tooltip-right::before {
+    border-color: transparent #28a745 transparent transparent;
+}
+
+.custom-tooltip-warning {
+    background: #ffc107;
+    color: #2c3e50;
+}
+
+.custom-tooltip-warning.custom-tooltip-top::before {
+    border-color: #ffc107 transparent transparent transparent;
+}
+
+.custom-tooltip-warning.custom-tooltip-bottom::before {
+    border-color: transparent transparent #ffc107 transparent;
+}
+
+.custom-tooltip-warning.custom-tooltip-left::before {
+    border-color: transparent transparent transparent #ffc107;
+}
+
+.custom-tooltip-warning.custom-tooltip-right::before {
+    border-color: transparent #ffc107 transparent transparent;
+}
+
+.custom-tooltip-danger {
+    background: #dc3545;
+}
+
+.custom-tooltip-danger.custom-tooltip-top::before {
+    border-color: #dc3545 transparent transparent transparent;
+}
+
+.custom-tooltip-danger.custom-tooltip-bottom::before {
+    border-color: transparent transparent #dc3545 transparent;
+}
+
+.custom-tooltip-danger.custom-tooltip-left::before {
+    border-color: transparent transparent transparent #dc3545;
+}
+
+.custom-tooltip-danger.custom-tooltip-right::before {
+    border-color: transparent #dc3545 transparent transparent;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .custom-tooltip {
+        font-size: 12px;
+        padding: 6px 10px;
+        max-width: 200px;
+    }
+}
+
+/* Hover effect for elements with tooltips */
+[data-tooltip] {
+    cursor: help;
+    position: relative;
+}
+
+/* Optional: Add underline dots for elements with tooltips */
+[data-tooltip].tooltip-underline {
+    border-bottom: 1px dotted #6c757d;
+}

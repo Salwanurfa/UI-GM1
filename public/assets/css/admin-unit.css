@@ -1,0 +1,154 @@
+/* Additional styles for Admin Unit Dashboard */
+
+/* Category specific colors */
+.category-si { background: linear-gradient(135deg, #2E8B57 0%, #228B22 100%); }
+.category-ec { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); }
+.category-ws { background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); }
+.category-wr { background: linear-gradient(135deg, #1E90FF 0%, #0066CC 100%); }
+.category-tr { background: linear-gradient(135deg, #DC143C 0%, #B22222 100%); }
+.category-ed { background: linear-gradient(135deg, #5c8cbf 0%, #4a7ba7 100%); }
+
+/* Form enhancements */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(92, 140, 191, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: #28a745;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+/* File upload styling */
+.file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+.file-upload-area.dragover {
+    border-color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+/* Progress indicators */
+.category-progress {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.category-progress.complete {
+    background-color: #28a745;
+    color: white;
+}
+
+.category-progress.incomplete {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Validation feedback */
+.invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+}
+
+.valid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #28a745;
+}
+
+/* Loading states */
+.btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive improvements */
+@media (max-width: 576px) {
+    .category-header {
+        padding: 1rem;
+    }
+    
+    .category-header h3 {
+        font-size: 1rem;
+    }
+    
+    .category-body {
+        padding: 1rem;
+    }
+    
+    .action-buttons {
+        padding: 1rem;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .action-buttons,
+    .btn,
+    .alert {
+        display: none !important;
+    }
+    
+    .category-card {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    .form-control {
+        border: 1px solid #000;
+        background: transparent;
+    }
+}

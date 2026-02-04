@@ -1,0 +1,320 @@
+/* Authentication Styles */
+
+:root {
+    --primary-color: #5C8CBF;
+    --primary-dark: #4a7ba7;
+    --primary-light: #e8f0f8;
+    --light-bg: #f8f9fa;
+    --card-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    --input-shadow: 0 0 0 0.2rem rgba(92, 140, 191, 0.25);
+}
+
+/* Login Page Specific Styles */
+.auth-body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, var(--light-bg) 0%, #e3f2fd 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    padding: 2.5rem;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    animation: slideUp 0.6s ease-out;
+}
+
+.auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    color: #6c757d;
+    font-size: 0.95rem;
+    font-weight: 400;
+}
+
+/* Form Styles */
+.auth-form-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.auth-form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.auth-form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    background-color: #fafbfc;
+    width: 100%;
+}
+
+.auth-form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: var(--input-shadow);
+    background-color: white;
+    outline: none;
+}
+
+.auth-form-control::placeholder {
+    color: #adb5bd;
+    font-weight: 400;
+}
+
+.auth-input-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #adb5bd;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: color 0.3s ease;
+}
+
+/* Button Styles */
+.auth-btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    border: none;
+    color: white;
+    padding: 0.875rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    width: 100%;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.auth-btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #3d6b94 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(92, 140, 191, 0.4);
+    color: white;
+}
+
+.auth-btn-primary:active {
+    transform: translateY(0);
+}
+
+.auth-btn-primary:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Alert Styles */
+.auth-alert {
+    border-radius: 10px;
+    border: none;
+    padding: 0.875rem 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.auth-alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.auth-alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.auth-alert-info {
+    background-color: var(--primary-light);
+    color: var(--primary-dark);
+}
+
+/* Footer */
+.auth-footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.auth-footer small {
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+/* Loading Overlay */
+.auth-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    z-index: 1000;
+}
+
+/* Validation Styles */
+.auth-invalid-feedback {
+    display: block;
+    font-size: 0.85rem;
+    color: #dc3545;
+    margin-top: 0.25rem;
+}
+
+.auth-form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.auth-form-control.is-valid {
+    border-color: #28a745;
+}
+
+/* Animation */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+    }
+    
+    .auth-title {
+        font-size: 1.5rem;
+    }
+    
+    .auth-container {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 320px) {
+    .auth-card {
+        padding: 1.5rem 1rem;
+    }
+    
+    .auth-title {
+        font-size: 1.25rem;
+    }
+}
+
+/* Focus States */
+.auth-form-control:focus + .auth-input-icon {
+    color: var(--primary-color);
+}
+
+/* Loading Button State */
+.auth-btn-primary.loading {
+    position: relative;
+    color: transparent;
+}
+
+.auth-btn-primary.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    color: white;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Accessibility */
+.auth-form-control:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.auth-btn-primary:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .auth-body {
+        background: white;
+    }
+    
+    .auth-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .auth-btn-primary {
+        background: #333 !important;
+        color: white !important;
+    }
+}

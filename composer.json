@@ -1,0 +1,157 @@
+{
+    "name": "polban/uigm-system",
+    "description": "UI GreenMetric Management System for Politeknik Negeri Bandung",
+    "type": "project",
+    "keywords": [
+        "codeigniter4",
+        "framework",
+        "uigm",
+        "greenmetric",
+        "sustainability",
+        "polban",
+        "education",
+        "management-system"
+    ],
+    "homepage": "https://github.com/polban/uigm-system",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "POLBAN Development Team",
+            "email": "dev@polban.ac.id",
+            "homepage": "https://polban.ac.id",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/polban/uigm-system/issues",
+        "source": "https://github.com/polban/uigm-system",
+        "docs": "https://github.com/polban/uigm-system/tree/main/docs",
+        "email": "support@polban.ac.id"
+    },
+    "require": {
+        "php": "^8.2",
+        "ext-intl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-mysqlnd": "*",
+        "codeigniter4/framework": "^4.6.4",
+        "dompdf/dompdf": "^3.0",
+        "phpoffice/phpspreadsheet": "^5.4"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "mikey179/vfsstream": "^1.6.11",
+        "phpunit/phpunit": "^10.5.5",
+        "predis/predis": "^2.2.2",
+        "rector/rector": "^1.0.0",
+        "friendsofphp/php-cs-fixer": "^3.64.0",
+        "phpstan/phpstan": "^1.12.0",
+        "phpstan/phpstan-strict-rules": "^1.6.0"
+    },
+    "suggest": {
+        "ext-redis": "For Redis cache support",
+        "ext-memcached": "For Memcached cache support",
+        "ext-gd": "For image manipulation",
+        "ext-imagick": "For advanced image processing",
+        "ext-curl": "For HTTP client functionality",
+        "ext-zip": "For backup and export functionality"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Config\\": "app/Config/"
+        },
+        "exclude-from-classmap": [
+            "**/Database/Migrations/**"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\Support\\": "tests/_support/",
+            "Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        },
+        "platform": {
+            "php": "8.2.0"
+        }
+    },
+    "scripts": {
+        "test": [
+            "phpunit"
+        ],
+        "test-coverage": [
+            "phpunit --coverage-html coverage/"
+        ],
+        "analyse": [
+            "phpstan analyse"
+        ],
+        "cs-fix": [
+            "php-cs-fixer fix --config=.php-cs-fixer.php"
+        ],
+        "cs-check": [
+            "php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff"
+        ],
+        "rector": [
+            "rector process --dry-run"
+        ],
+        "rector-fix": [
+            "rector process"
+        ],
+        "quality": [
+            "@cs-check",
+            "@analyse",
+            "@test"
+        ],
+        "post-update-cmd": [
+            "@php spark cache:clear"
+        ],
+        "post-install-cmd": [
+            "@php -r \"copy('.env.example', '.env');\""
+        ],
+        "serve": [
+            "php spark serve --host=localhost --port=8080"
+        ],
+        "migrate": [
+            "php spark migrate"
+        ],
+        "seed": [
+            "php spark db:seed"
+        ],
+        "setup": [
+            "@composer install",
+            "@migrate",
+            "@seed"
+        ]
+    },
+    "scripts-descriptions": {
+        "test": "Run PHPUnit tests",
+        "test-coverage": "Run tests with coverage report",
+        "analyse": "Run PHPStan static analysis",
+        "cs-fix": "Fix coding standards issues",
+        "cs-check": "Check coding standards",
+        "rector": "Check for code modernization opportunities",
+        "rector-fix": "Apply code modernization fixes",
+        "quality": "Run all quality checks",
+        "serve": "Start development server",
+        "migrate": "Run database migrations",
+        "seed": "Run database seeders",
+        "setup": "Complete project setup"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "extra": {
+        "codeigniter4": {
+            "app-starter": false
+        },
+        "branch-alias": {
+            "dev-main": "1.0-dev"
+        }
+    }
+}

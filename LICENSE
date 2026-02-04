@@ -1,0 +1,93 @@
+MIT License
+
+Copyright (c) 2026 Politeknik Negeri Bandung
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+ADDITIONAL TERMS FOR EDUCATIONAL USE:
+
+This software is developed by and for Politeknik Negeri Bandung (POLBAN) as part 
+of the UI GreenMetric Management System. While the software is released under the 
+MIT License, the following additional terms apply:
+
+1. ATTRIBUTION: Any use, modification, or distribution of this software should 
+   include proper attribution to Politeknik Negeri Bandung and the original 
+   development team.
+
+2. EDUCATIONAL PURPOSE: This software is primarily intended for educational and 
+   research purposes within academic institutions.
+
+3. DATA PROTECTION: Users must comply with applicable data protection laws and 
+   regulations when handling personal or sensitive data through this system.
+
+4. INSTITUTIONAL USE: Commercial use of this software should acknowledge its 
+   educational origins and consider contributing improvements back to the 
+   academic community.
+
+5. SUPPORT: While the software is provided "as is," the development team at 
+   POLBAN may provide support for educational institutions implementing similar 
+   sustainability tracking systems.
+
+For questions regarding licensing or institutional use, please contact:
+- Email: admin@polban.ac.id
+- Institution: Politeknik Negeri Bandung
+- Address: Jl. Gegerkalong Hilir, Ds. Ciwaruga, Bandung 40012, Indonesia
+
+---
+
+THIRD-PARTY COMPONENTS:
+
+This software includes components from the following open-source projects:
+
+- CodeIgniter 4 Framework (MIT License)
+  Copyright (c) 2014-2024 British Columbia Institute of Technology
+  https://codeigniter.com/
+
+- Bootstrap CSS Framework (MIT License)
+  Copyright (c) 2011-2024 The Bootstrap Authors
+  https://getbootstrap.com/
+
+- Font Awesome Icons (Font Awesome Free License)
+  Copyright (c) Fonticons, Inc.
+  https://fontawesome.com/
+
+- Chart.js (MIT License)
+  Copyright (c) 2014-2024 Chart.js Contributors
+  https://chartjs.org/
+
+All third-party components retain their original licenses and copyright notices.
+
+---
+
+DISCLAIMER:
+
+This software is developed for the UI GreenMetric World University Rankings 
+sustainability assessment program. The UI GreenMetric program is an initiative 
+of Universitas Indonesia. This software implementation is independent and not 
+officially endorsed by Universitas Indonesia or the UI GreenMetric team.
+
+For official UI GreenMetric information, please visit:
+https://greenmetric.ui.ac.id/
+
+---
+
+Last Updated: January 2, 2026
+Version: 1.0.0
