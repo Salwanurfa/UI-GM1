@@ -1,0 +1,336 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║       LIMBAH B3 FEATURE - COMPLETE CLEAN CODE & DOCUMENTATION         ║
+║                                                                        ║
+║  Semua perbaikan untuk error "Unexpected token <" sudah diterapkan    ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+================================================================================
+FILE 1: LimbahB3Service.php
+================================================================================
+
+LOKASI: app/Services/LimbahB3Service.php
+
+KEY FIXES:
+✅ saveUser() - Action handling:
+   - Jika action='kirim_ke_tps' → status='dikirim_ke_tps'
+   - Default atau action='simpan_draf' → status='draft'
+
+✅ updateUser() - Same action handling for edit
+
+✅ Added verbose logging untuk tracking:
+   - Input data logging
+   - Payload prepared logging
+   - Insert/update result logging
+   - Exception backtrace logging
+
+✅ Added error_field indicator untuk client-side debugging
+
+✅ Added exception message di response untuk clarity
+
+CRITICAL METHODS:
+1. getUserIndexData()
+   → Returns: master_list dari master_limbah_b3 untuk dropdown
+
+2. saveUser(array $data)
+   → Validates: master_b3_id, timbulan, satuan (required)
+   → Sets status berdasarkan action parameter
+   → Inserts ke limbah_b3 dengan correct field mapping
+   → Returns JSON response
+
+3. updateUser(int $id, array $data)
+   → Same validation & action handling sebagai saveUser
+   → Only edit jika status='draft' atau 'ditolak_tps'
+
+4. deleteUser(int $id)
+   → Only delete jika status='draft'
+
+5. getActiveMasterList()
+   → Gets all master_limbah_b3 records untuk dropdown
+
+ACTION LOGIC:
+```php
+// Baris ~130-135 di saveUser()
+$status = 'draft'; // Default status
+if (isset($data['action']) && $data['action'] === 'kirim_ke_tps') {
+    $status = 'dikirim_ke_tps';
+}
+```
+
+================================================================================
+FILE 2: LimbahB3.php (Controller)
+================================================================================
+
+LOKASI: app/Controllers/User/LimbahB3.php
+
+KEY FIXES:
+✅ Line 54 - Fixed default action in save():
+   'action' => $post['action'] ?? 'simpan_draf',  ← Changed from 'draf'
+
+✅ Line 93 - Fixed default action in edit():
+   'action' => $post['action'] ?? 'simpan_draf',  ← Changed from 'draf'
+
+✅ All endpoints return setJSON() - NO echo/print_r
+
+ENDPOINTS:
+1. POST /user/limbah-b3/save
+   → Menerima: master_b3_id, lokasi, timbulan, satuan, bentuk_fisik, kemasan, action
+   → Calls: Service.saveUser()
+   → Returns: JSON { success, message, data }
+
+2. GET /user/limbah-b3/get/{id}
+   → Returns: { success, data } dengan master info
+
+3. POST /user/limbah-b3/edit/{id}
+   → Same param sebagai save
+   → Calls: Service.updateUser()
+   → Returns: JSON response
+
+4. POST /user/limbah-b3/delete/{id}
+   → Calls: Service.deleteUser()
+   → Returns: JSON response
+
+5. GET /user/limbah-b3/master/{id}
+   → AJAX endpoint untuk master detail
+
+ALL RETURN FORMAT:
+```php
+return $this->response
+    ->setContentType('application/json')
+    ->setJSON($result);  ← NO echo before this
+```
+
+================================================================================
+FILE 3: limbah_b3.php (View)
+================================================================================
+
+LOKASI: app/Views/user/limbah_b3.php
+
+KEY FIXES:
+✅ Enhanced JavaScript error handling dengan verbose logging
+
+✅ Added response content-type validation
+
+✅ Added raw HTML response display jika error
+
+✅ Emoji logging untuk clarity
+
+CRITICAL FORM ELEMENTS:
+
+1. Master Dropdown (Line ~480):
+```html
+<select id="master_b3_id" name="master_b3_id">
+    <option value="">-- Pilih --</option>
+    <?php foreach ($master_list as $m): ?>
+        <option value="<?= $m['id'] ?>"
+                data-kode="<?= esc($m['kode_limbah']) ?>"
+                data-kategori="<?= esc($m['kategori_bahaya']) ?>">
+            <?= esc($m['nama_limbah']) ?>
+        </option>
+    <?php endforeach; ?>
+</select>
+```
+→ PENTING: data-kode & data-kategori attributes untuk auto-fill
+
+2. Auto-Fill Fields:
+```html
+<input type="text" id="kode_limbah_display" readonly>
+<input type="text" id="kategori_bahaya_display" readonly>
+```
+→ Auto-filled saat master dipilih
+
+3. Action Buttons (Line ~600):
+```html
+<button type="submit" value="simpan_draf" ...>
+    Simpan sebagai Draft
+</button>
+
+<button type="submit" value="kirim_ke_tps" ...>
+    Kirim ke TPS
+</button>
+```
+→ PENTING: value= harus sesuai ('simpan_draf' atau 'kirim_ke_tps')
+
+JAVASCRIPT AUTO-FILL (Line ~650):
+```javascript
+$('#master_b3_id').on('change', function() {
+    const selectedOption = $(this).find('option:selected');
+    const kode = selectedOption.data('kode') || '';
+    const kategori = selectedOption.data('kategori') || '';
+    
+    $('#kode_limbah_display').val(kode);
+    $('#kategori_bahaya_display').val(kategori);
+});
+```
+
+FORM SUBMISSION (Line ~700+):
+```javascript
+const limbahId = document.getElementById('limbah_id').value;
+const action = e.submitter.value; // Gets button value: 'simpan_draf' atau 'kirim_ke_tps'
+
+const formData = new FormData(this);
+formData.append('action', action);  // ← IMPORTANT: Append action
+
+const url = limbahId 
+    ? '<?= base_url('user/limbah-b3/edit/') ?>' + limbahId
+    : '<?= base_url('user/limbah-b3/save') ?>';
+
+const response = await fetch(url, { method: 'POST', body: formData });
+```
+
+ERROR HANDLING (Line ~750+):
+```javascript
+// Check content-type
+const contentType = response.headers.get('content-type');
+if (!contentType || !contentType.includes('application/json')) {
+    const rawText = await response.text();
+    console.error('❌ ERROR: Server returned non-JSON response!');
+    console.error('🔍 Raw Response:', rawText);
+    toast.error('Server error: ' + rawText.substring(0, 200));
+    return;
+}
+
+// Parse & handle response
+const data = await response.json();
+if (data.success) {
+    setTimeout(() => location.reload(), 1000);
+} else {
+    toast.error(data.message);
+}
+```
+
+================================================================================
+DATA FLOW DIAGRAM
+================================================================================
+
+USER CLICKS "KIRIM KE TPS"
+        ↓
+JavaScript captures:
+  - form data (master_b3_id, lokasi, timbulan, satuan)
+  - action = 'kirim_ke_tps' (from button value)
+  - sends to /user/limbah-b3/save
+        ↓
+Controller.save() receives:
+  - $post['master_b3_id'] = 1
+  - $post['action']       = 'kirim_ke_tps'
+  - Default action from (??) = 'simpan_draf' (not used if action sent)
+  - Calls Service.saveUser([ ... 'action' => 'kirim_ke_tps'])
+        ↓
+Service.saveUser() processes:
+  - Log: Input data
+  - Validate: master_b3_id, timbulan, satuan
+  - Check: action === 'kirim_ke_tps' ?
+    → YES: $status = 'dikirim_ke_tps'
+    → NO/DEFAULT: $status = 'draft'
+  - Prepare payload:
+    [ 'id_user' => 1,
+      'master_b3_id' => 1,
+      'status' => 'dikirim_ke_tps', ← KEY
+      ... other fields ]
+  - Log: Prepared payload
+  - Model.insert(payload)
+  - Log: Insert success/fail
+  - Return: { success: true/false, message: '...', data: {...} }
+        ↓
+Controller returns:
+  - setJSON($result) → JSON response
+        ↓
+JavaScript receives:
+  - Parse JSON
+  - Check content-type ✅
+  - if success → show message & reload page
+  - if fail → show error message
+        ↓
+Page reloads & shows new record in table with status='dikirim_ke_tps'
+
+================================================================================
+DEBUG CHECKLIST
+================================================================================
+
+Browser Console (F12):
+□ See "📤 Submitting to: /user/limbah-b3/save"
+□ See "📋 Action: kirim_ke_tps"
+□ See all form data logged
+□ See "📊 Response Status: 200"
+□ See "📊 Response Headers: application/json"
+□ See "✅ Parsed JSON Response"
+□ See "🎉 Success! Reloading..."
+
+If Error:
+□ See "❌ ERROR: Server returned non-JSON"
+□ See "🔍 Raw Response" with HTML error
+□ Copy error HTML to check what went wrong
+
+PHP Logs (writable/logs/log-2026-02-26.log):
+□ "LimbahB3Service::saveUser called with data: {...}"
+□ "Prepared payload: {...}" - check if status='dikirim_ke_tps'
+□ "Insert success with message: ..."
+□ OR "Exception: ..." if error
+
+Database:
+□ SELECT * FROM limbah_b3 ORDER BY id DESC LIMIT 1;
+□ Check: status column = 'dikirim_ke_tps'
+□ Check: master_b3_id = selected value
+□ Check: id_user = your user id
+
+================================================================================
+FIELD MAPPING REFERENCE
+================================================================================
+
+HTML Form Input → Post Data → Service Param → Database Column
+────────────────────────────────────────────────────────────
+
+#master_b3_id dropdown
+  └─> $_POST['master_b3_id']
+      └─> $data['master_b3_id']
+          └─> limbah_b3.master_b3_id (FK to master_limbah_b3)
+
+#lokasi dropdown
+  └─> $_POST['lokasi']
+      └─> $data['lokasi']
+          └─> limbah_b3.lokasi
+
+#timbulan input
+  └─> $_POST['timbulan']
+      └─> (float) $data['timbulan']
+          └─> limbah_b3.timbulan
+
+#satuan dropdown
+  └─> $_POST['satuan']
+      └─> $data['satuan']
+          └─> limbah_b3.satuan
+
+[Action Button Value] → formData.append('action', value)
+  └─> $_POST['action'] = 'kirim_ke_tps' OR 'simpan_draf'
+      └─> $data['action']
+          └─> Decision: status = 'draft' OR 'dikirim_ke_tps'
+              └─> limbah_b3.status
+
+Session User
+  └─> session()->get('user')['id']
+      └─> $user['id']
+          └─> limbah_b3.id_user
+
+================================================================================
+REQUIRED DATABASE STATE
+================================================================================
+
+✅ Table: limbah_b3
+   - Columns: id, id_user, master_b3_id, lokasi, timbulan, satuan,
+             bentuk_fisik, kemasan, status, tanggal_input
+   - Status ENUM: 'draft', 'dikirim_ke_tps', 'disetujui_tps', 'ditolak_tps', 'disetujui_admin'
+   - FK: master_b3_id → master_limbah_b3
+
+✅ Table: master_limbah_b3
+   - Contains: At least 9 records (Oli Bekas, Grease, etc.)
+   - Columns: id, nama_limbah, kode_limbah, kategori_bahaya, karakteristik
+
+================================================================================
+EVERYTHING IS READY FOR TESTING
+================================================================================
+
+All syntax validated ✅
+All action handlers fixed ✅
+All error handlers enhanced ✅
+All logging implemented ✅
+
+Next: Open browser → F12 console → Test in http://localhost:8080/user/limbah-b3

@@ -7,7 +7,6 @@ function getWasteIcon($jenis) {
         'Organik' => 'seedling',
         'Anorganik' => 'cube',
         'Limbah Cair' => 'flask',
-        'B3' => 'exclamation-triangle'
     ];
     return $icons[$jenis] ?? 'trash';
 }

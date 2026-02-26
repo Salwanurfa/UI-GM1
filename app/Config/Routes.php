@@ -31,6 +31,7 @@ $routes->group('admin-pusat', ['filter' => 'role:admin_pusat,super_admin'], func
     require APPPATH . 'Config/Routes/Admin/review.php';
     require APPPATH . 'Config/Routes/Admin/laporan.php';
     require APPPATH . 'Config/Routes/Admin/laporan_waste.php';
+    require APPPATH . 'Config/Routes/Admin/limbah_b3.php';
     require APPPATH . 'Config/Routes/Admin/profil.php';
     require APPPATH . 'Config/Routes/Admin/pengaturan.php';
     require APPPATH . 'Config/Routes/Admin/uigm_categories.php';
@@ -53,6 +54,14 @@ $routes->group('user', ['filter' => 'role:user'], function ($routes) {
     $routes->delete('waste/delete/(:num)', 'User\\Waste::delete/$1'); // Keep DELETE for backward compatibility
     $routes->get('waste/export', 'User\\Waste::export');
     $routes->get('waste/export-pdf', 'User\\Waste::exportPdf');
+
+    // Limbah B3
+    $routes->get('limbah-b3', 'User\\LimbahB3::index');
+    $routes->get('limbah-b3/get/(:num)', 'User\\LimbahB3::get/$1');
+    $routes->post('limbah-b3/save', 'User\\LimbahB3::save');
+    $routes->post('limbah-b3/edit/(:num)', 'User\\LimbahB3::edit/$1');
+    $routes->post('limbah-b3/delete/(:num)', 'User\\LimbahB3::delete/$1');
+    $routes->get('limbah-b3/master/(:num)', 'User\\LimbahB3::master/$1');
     
     // Profile
     $routes->get('profile', 'User\\Profile::index');
@@ -87,6 +96,11 @@ $routes->group('pengelola-tps', ['filter' => 'role:pengelola_tps'], function ($r
     $routes->delete('waste/delete/(:num)', 'TPS\\Waste::delete/$1'); // Keep DELETE for backward compatibility
     $routes->get('waste/export', 'TPS\\Waste::export');
     $routes->get('waste/export-pdf', 'TPS\\Waste::exportPdf');
+
+    // Limbah B3 TPS
+    $routes->get('limbah-b3', 'TPS\\LimbahB3::index');
+    $routes->post('limbah-b3/approve/(:num)', 'TPS\\LimbahB3::approve/$1');
+    $routes->post('limbah-b3/reject/(:num)', 'TPS\\LimbahB3::reject/$1');
     
     // Profile
     $routes->get('profile', 'TPS\\Profile::index');

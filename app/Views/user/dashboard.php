@@ -12,6 +12,7 @@ $wasteOverallStats = $wasteOverallStats ?? [];
 $wasteStats = $wasteStats ?? [];
 $recentActivities = $recentActivities ?? [];
 $featureData = $featureData ?? [];
+$limbah_b3_list = $limbah_b3_list ?? [];
 
 // Helper function untuk display stats
 if (!function_exists('displayStat')) {
@@ -308,6 +309,93 @@ helper('feature');
             Waste management summary is currently disabled by administrator.
         </div>
         <?php endif; ?>
+
+        <!-- Limbah B3 Summary - Tabel Daftar Limbah B3 -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-skull-crossbones"></i>
+                <h3>Daftar Limbah B3</h3>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <a href="<?= base_url('/user/limbah-b3') ?>" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Input Data
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <?php 
+                $limbah_b3_list = $limbah_b3_list ?? [];
+                if (!empty($limbah_b3_list)): 
+                ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama Limbah</th>
+                                <th>Lokasi</th>
+                                <th>Timbulan</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($limbah_b3_list as $limbah): ?>
+                            <tr>
+                                <td><?= date('d/m/Y', strtotime($limbah['tanggal_input'])) ?></td>
+                                <td><?= esc($limbah['nama_limbah']) ?></td>
+                                <td><?= esc($limbah['lokasi'] ?? '-') ?></td>
+                                <td><?= number_format($limbah['timbulan'], 2) ?> <?= esc($limbah['satuan']) ?></td>
+                                <td>
+                                    <?php
+                                    $statusClass = '';
+                                    $statusText = '';
+                                    switch($limbah['status']) {
+                                        case 'draft':
+                                            $statusClass = 'badge bg-secondary';
+                                            $statusText = 'Draft';
+                                            break;
+                                        case 'dikirim_ke_tps':
+                                            $statusClass = 'badge bg-warning';
+                                            $statusText = 'Menunggu Review TPS';
+                                            break;
+                                        case 'disetujui_tps':
+                                            $statusClass = 'badge bg-info';
+                                            $statusText = 'Disetujui TPS';
+                                            break;
+                                        case 'ditolak_tps':
+                                            $statusClass = 'badge bg-danger';
+                                            $statusText = 'Ditolak TPS';
+                                            break;
+                                        case 'disetujui_admin':
+                                            $statusClass = 'badge bg-success';
+                                            $statusText = 'Disetujui Admin';
+                                            break;
+                                        default:
+                                            $statusClass = 'badge bg-secondary';
+                                            $statusText = ucfirst($limbah['status']);
+                                    }
+                                    ?>
+                                    <span class="<?= $statusClass ?>"><?= $statusText ?></span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="<?= base_url('/user/limbah-b3') ?>" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Lihat Semua Data Limbah B3
+                    </a>
+                </div>
+                <?php else: ?>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Belum ada data Limbah B3. Mulai dengan menginput data baru.
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
 
         <!-- Waste Detail Modal -->
         <div class="modal fade" id="activityDetailModal" tabindex="-1">

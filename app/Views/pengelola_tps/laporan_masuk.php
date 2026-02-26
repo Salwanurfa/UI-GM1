@@ -218,10 +218,10 @@
                             <tr>
                                 <th>Tanggal</th>
                                 <th>User</th>
-                                <th>Unit</th>
-                                <th>Gedung</th>
-                                <th>Jenis Sampah</th>
-                                <th>Berat</th>
+                                <th>Tipe</th>
+                                <th>Item</th>
+                                <th>Jumlah</th>
+                                <th>Lokasi / Gedung</th>
                                 <th>Nilai</th>
                                 <th>Aksi</th>
                             </tr>
@@ -234,19 +234,51 @@
                                     <strong><?= htmlspecialchars($laporan['user_nama'] ?? 'N/A') ?></strong><br>
                                     <small class="text-muted"><?= htmlspecialchars($laporan['user_email'] ?? '') ?></small>
                                 </td>
-                                <td><?= htmlspecialchars($laporan['unit_nama'] ?? 'N/A') ?></td>
-                                <td><?= htmlspecialchars($laporan['gedung_pelapor'] ?? $laporan['gedung'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($laporan['jenis_sampah'] ?? 'N/A') ?></td>
-                                <td><?= number_format($laporan['berat_kg'] ?? 0, 2) ?> kg</td>
-                                <td>Rp <?= number_format($laporan['nilai_rupiah'] ?? 0, 0, ',', '.') ?></td>
                                 <td>
-                                    <button class="btn btn-sm btn-info" onclick="viewDetail(<?= $laporan['id'] ?>)">
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <span class="badge bg-primary">Sampah</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger"><i class="fas fa-skull-crossbones"></i> Limbah B3</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <?= htmlspecialchars($laporan['jenis_sampah'] ?? 'N/A') ?>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($laporan['nama_limbah'] ?? 'N/A') ?><br>
+                                        <small class="text-muted">Form: <?= htmlspecialchars($laporan['bentuk_fisik'] ?? '-') ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <?= number_format($laporan['berat_kg'] ?? 0, 2) ?> kg
+                                    <?php else: ?>
+                                        <?= number_format($laporan['timbulan'] ?? 0, 2) ?> <?= esc($laporan['satuan'] ?? '') ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <?= htmlspecialchars($laporan['gedung_pelapor'] ?? $laporan['gedung'] ?? '-') ?><br>
+                                        <small class="text-muted"><?= htmlspecialchars($laporan['unit_nama'] ?? '') ?></small>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($laporan['lokasi'] ?? '-') ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        Rp <?= number_format($laporan['nilai_rupiah'] ?? 0, 0, ',', '.') ?>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick="viewDetail(<?= $laporan['id'] ?>, '<?= $laporan['type'] ?>')">
                                         <i class="fas fa-eye"></i> Detail
                                     </button>
-                                    <button class="btn btn-sm btn-success" onclick="approveLaporan(<?= $laporan['id'] ?>)">
+                                    <button class="btn btn-sm btn-success" onclick="approveLaporan(<?= $laporan['id'] ?>, '<?= $laporan['type'] ?>')">
                                         <i class="fas fa-check"></i> Setujui
                                     </button>
-                                    <button class="btn btn-sm btn-danger" onclick="rejectLaporan(<?= $laporan['id'] ?>)">
+                                    <button class="btn btn-sm btn-danger" onclick="rejectLaporan(<?= $laporan['id'] ?>, '<?= $laporan['type'] ?>')">
                                         <i class="fas fa-times"></i> Tolak
                                     </button>
                                 </td>
@@ -280,8 +312,9 @@
                             <tr>
                                 <th>Tanggal Review</th>
                                 <th>User</th>
-                                <th>Jenis Sampah</th>
-                                <th>Berat</th>
+                                <th>Tipe</th>
+                                <th>Item</th>
+                                <th>Jumlah</th>
                                 <th>Status</th>
                                 <th>Catatan</th>
                                 <th>Aksi</th>
@@ -290,22 +323,41 @@
                         <tbody>
                             <?php foreach ($laporan_reviewed as $laporan): ?>
                             <tr>
-                                <td><?= date('d/m/Y H:i', strtotime($laporan['tps_reviewed_at'])) ?></td>
+                                <td><?= date('d/m/Y H:i', strtotime($laporan['tps_reviewed_at'] ?? $laporan['tanggal_input'] ?? 'now')) ?></td>
                                 <td><?= htmlspecialchars($laporan['user_nama'] ?? 'N/A') ?></td>
-                                <td><?= htmlspecialchars($laporan['jenis_sampah'] ?? 'N/A') ?></td>
-                                <td><?= number_format($laporan['berat_kg'] ?? 0, 2) ?> kg</td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <span class="badge bg-primary">Sampah</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger"><i class="fas fa-skull-crossbones"></i> Limbah B3</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <?= htmlspecialchars($laporan['jenis_sampah'] ?? 'N/A') ?>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($laporan['nama_limbah'] ?? 'N/A') ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($laporan['type'] === 'waste'): ?>
+                                        <?= number_format($laporan['berat_kg'] ?? 0, 2) ?> kg
+                                    <?php else: ?>
+                                        <?= number_format($laporan['timbulan'] ?? 0, 2) ?> <?= esc($laporan['satuan'] ?? '') ?>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($laporan['status'] === 'disetujui_tps'): ?>
                                         <span class="badge bg-success">Disetujui</span>
                                     <?php elseif ($laporan['status'] === 'ditolak_tps'): ?>
                                         <span class="badge bg-danger">Ditolak</span>
                                     <?php else: ?>
-                                        <span class="badge bg-secondary"><?= ucfirst($laporan['status']) ?></span>
+                                        <span class="badge bg-secondary"><?= ucfirst(str_replace('_', ' ', $laporan['status'])) ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td><?= htmlspecialchars($laporan['tps_catatan'] ?? '-') ?></td>
+                                <td><?= htmlspecialchars($laporan['tps_catatan'] ?? $laporan['keterangan'] ?? '-') ?></td>
                                 <td>
-                                    <button class="btn btn-sm btn-info" onclick="viewDetail(<?= $laporan['id'] ?>)">
+                                    <button class="btn btn-sm btn-info" onclick="viewDetail(<?= $laporan['id'] ?>, '<?= $laporan['type'] ?>')">
                                         <i class="fas fa-eye"></i> Detail
                                     </button>
                                 </td>
@@ -353,6 +405,7 @@
                         <textarea class="form-control" id="approve_catatan" rows="3" placeholder="Tambahkan catatan jika diperlukan..."></textarea>
                     </div>
                     <input type="hidden" id="approve_id">
+                    <input type="hidden" id="approve_type" value="waste">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -379,6 +432,7 @@
                         <textarea class="form-control" id="reject_catatan" rows="3" placeholder="Jelaskan alasan penolakan..." required></textarea>
                     </div>
                     <input type="hidden" id="reject_id">
+                    <input type="hidden" id="reject_type" value="waste">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -393,7 +447,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function viewDetail(id) {
+    function viewDetail(id, type = 'waste') {
         $('#detailModal').modal('show');
         $('#detailContent').html('<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>');
         
@@ -404,45 +458,95 @@
             success: function(response) {
                 if (response.success) {
                     const data = response.data;
-                    let html = `
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6 class="text-primary"><i class="fas fa-user"></i> Informasi User</h6>
-                                <table class="table table-sm">
-                                    <tr><td><strong>Nama:</strong></td><td>${data.user_nama || 'N/A'}</td></tr>
-                                    <tr><td><strong>Email:</strong></td><td>${data.user_email || 'N/A'}</td></tr>
-                                    <tr><td><strong>Unit:</strong></td><td>${data.unit_nama || 'N/A'}</td></tr>
-                                    <tr><td><strong>Gedung:</strong></td><td>${data.gedung_pelapor || data.gedung || '-'}</td></tr>
-                                </table>
+                    let html = '';
+                    
+                    if (data.type === 'waste') {
+                        html = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-user"></i> Informasi User</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Nama:</strong></td><td>${data.user_nama || 'N/A'}</td></tr>
+                                        <tr><td><strong>Email:</strong></td><td>${data.user_email || 'N/A'}</td></tr>
+                                        <tr><td><strong>Unit:</strong></td><td>${data.unit_nama || 'N/A'}</td></tr>
+                                        <tr><td><strong>Gedung:</strong></td><td>${data.gedung_pelapor || data.gedung || '-'}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-recycle"></i> Informasi Sampah</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Jenis:</strong></td><td>${data.jenis_sampah || 'N/A'}</td></tr>
+                                        <tr><td><strong>Berat:</strong></td><td>${parseFloat(data.berat_kg || 0).toFixed(2)} kg</td></tr>
+                                        <tr><td><strong>Kategori:</strong></td><td>${data.kategori_sampah || 'N/A'}</td></tr>
+                                        <tr><td><strong>Nilai:</strong></td><td>Rp ${parseInt(data.nilai_rupiah || 0).toLocaleString('id-ID')}</td></tr>
+                                    </table>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <h6 class="text-primary"><i class="fas fa-recycle"></i> Informasi Sampah</h6>
-                                <table class="table table-sm">
-                                    <tr><td><strong>Jenis:</strong></td><td>${data.jenis_sampah || 'N/A'}</td></tr>
-                                    <tr><td><strong>Berat:</strong></td><td>${parseFloat(data.berat_kg || 0).toFixed(2)} kg</td></tr>
-                                    <tr><td><strong>Kategori:</strong></td><td>${data.kategori_sampah || 'N/A'}</td></tr>
-                                    <tr><td><strong>Nilai:</strong></td><td>Rp ${parseInt(data.nilai_rupiah || 0).toLocaleString('id-ID')}</td></tr>
-                                </table>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary"><i class="fas fa-calendar"></i> Informasi Waktu</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Tanggal Input:</strong></td><td>${new Date(data.created_at).toLocaleString('id-ID')}</td></tr>
+                                        <tr><td><strong>Status:</strong></td><td><span class="badge bg-warning">${data.status}</span></td></tr>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-12">
-                                <h6 class="text-primary"><i class="fas fa-calendar"></i> Informasi Waktu</h6>
-                                <table class="table table-sm">
-                                    <tr><td><strong>Tanggal Input:</strong></td><td>${new Date(data.created_at).toLocaleString('id-ID')}</td></tr>
-                                    <tr><td><strong>Status:</strong></td><td><span class="badge bg-warning">${data.status}</span></td></tr>
-                                </table>
+                            ${data.catatan ? `
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary"><i class="fas fa-sticky-note"></i> Catatan</h6>
+                                    <p class="border p-3 rounded">${data.catatan}</p>
+                                </div>
                             </div>
-                        </div>
-                        ${data.catatan ? `
-                        <div class="row mt-3">
-                            <div class="col-12">
-                                <h6 class="text-primary"><i class="fas fa-sticky-note"></i> Catatan</h6>
-                                <p class="border p-3 rounded">${data.catatan}</p>
+                            ` : ''}
+                        `;
+                    } else {
+                        // Limbah B3 detail view
+                        html = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-danger"><i class="fas fa-user"></i> Informasi User</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Nama:</strong></td><td>${data.user_nama || 'N/A'}</td></tr>
+                                        <tr><td><strong>Email:</strong></td><td>${data.user_email || 'N/A'}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-danger"><i class="fas fa-skull-crossbones"></i> Informasi Limbah B3</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Nama Limbah:</strong></td><td>${data.nama_limbah || 'N/A'}</td></tr>
+                                        <tr><td><strong>Timbulan:</strong></td><td>${parseFloat(data.timbulan || 0).toFixed(2)} ${data.satuan || ''}</td></tr>
+                                        <tr><td><strong>Lokasi:</strong></td><td>${data.lokasi || 'N/A'}</td></tr>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                        ` : ''}
-                    `;
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-cask"></i> Detail Limbah</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Bentuk Fisik:</strong></td><td>${data.bentuk_fisik || '-'}</td></tr>
+                                        <tr><td><strong>Kemasan:</strong></td><td>${data.kemasan || '-'}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-calendar"></i> Informasi Waktu</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Tanggal Input:</strong></td><td>${new Date(data.tanggal_input).toLocaleString('id-ID')}</td></tr>
+                                        <tr><td><strong>Status:</strong></td><td><span class="badge bg-warning">${data.status}</span></td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                            ${data.keterangan ? `
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary"><i class="fas fa-sticky-note"></i> Keterangan</h6>
+                                    <p class="border p-3 rounded">${data.keterangan}</p>
+                                </div>
+                            </div>
+                            ` : ''}
+                        `;
+                    }
+                    
                     $('#detailContent').html(html);
                 } else {
                     $('#detailContent').html('<div class="alert alert-danger">' + response.message + '</div>');
@@ -454,8 +558,9 @@
         });
     }
 
-    function approveLaporan(id) {
+    function approveLaporan(id, type = 'waste') {
         $('#approve_id').val(id);
+        $('#approve_type').val(type);
         $('#approve_catatan').val('');
         $('#approveModal').modal('show');
     }
@@ -500,8 +605,9 @@
         });
     }
 
-    function rejectLaporan(id) {
+    function rejectLaporan(id, type = 'waste') {
         $('#reject_id').val(id);
+        $('#reject_type').val(type);
         $('#reject_catatan').val('');
         $('#rejectModal').modal('show');
     }
