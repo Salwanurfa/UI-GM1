@@ -4,16 +4,19 @@ namespace App\Services\User;
 
 use App\Models\WasteModel;
 use App\Models\UnitModel;
+use App\Models\LimbahB3Model;
 
 class DashboardService
 {
     protected $wasteModel;
     protected $unitModel;
+    protected $limbahB3Model;
 
     public function __construct()
     {
         $this->wasteModel = new WasteModel();
         $this->unitModel = new UnitModel();
+        $this->limbahB3Model = new LimbahB3Model();
     }
 
     public function getDashboardData(): array
@@ -36,6 +39,7 @@ class DashboardService
                 'wasteStats' => $this->getWasteStatsByType($unitId),
                 'wasteManagementSummary' => $this->getWasteManagementSummary($unitId),
                 'recent_activities' => $this->getRecentActivities($user['id'], $unitId),
+                'limbah_b3_list' => $this->getLimbahB3List($user['id']),
                 'feature_data' => $this->getFeatureData()
             ];
         } catch (\Exception $e) {
@@ -49,6 +53,7 @@ class DashboardService
                 'wasteStats' => [],
                 'wasteManagementSummary' => [],
                 'recent_activities' => [],
+                'limbah_b3_list' => [],
                 'feature_data' => []
             ];
         }
@@ -134,31 +139,70 @@ class DashboardService
         }
 
         try {
-            $maxItems = 10; // Increase limit to show more activities
+            $maxItems = 10;
+            $db = \Config\Database::connect();
             
-            $recentWaste = $this->wasteModel
-                ->select('waste_management.*, users.nama_lengkap as reviewer_name')
-                ->join('users', 'users.id = waste_management.reviewed_by', 'left')
-                ->where('waste_management.unit_id', $unitId)
-                ->orderBy('waste_management.updated_at', 'DESC')
-                ->limit($maxItems)
-                ->findAll();
+            // UNION query: gabungkan waste_management dan limbah_b3
+            $sql = "
+                SELECT 
+                    'waste' AS type,
+                    wm.id,
+                    wm.created_at AS tanggal,
+                    wm.jenis_sampah AS nama_item,
+                    wm.berat_kg AS timbulan,
+                    'kg' AS satuan,
+                    wm.status,
+                    wm.updated_at,
+                    wm.nilai_rupiah,
+                    wm.catatan_review,
+                    u.nama_lengkap AS reviewer_name,
+                    wm.reviewed_at AS tanggal_review
+                FROM waste_management wm
+                LEFT JOIN users u ON u.id = wm.reviewed_by
+                WHERE wm.unit_id = ?
+                
+                UNION ALL
+                
+                SELECT 
+                    'limbah_b3' AS type,
+                    lb.id,
+                    lb.tanggal_input AS tanggal,
+                    mlb.nama_limbah AS nama_item,
+                    lb.timbulan,
+                    lb.satuan,
+                    lb.status,
+                    lb.tanggal_input AS updated_at,
+                    NULL AS nilai_rupiah,
+                    lb.keterangan AS catatan_review,
+                    NULL AS reviewer_name,
+                    lb.tanggal_input AS tanggal_review
+                FROM limbah_b3 lb
+                LEFT JOIN master_limbah_b3 mlb ON mlb.id = lb.master_b3_id
+                WHERE lb.id_user = ?
+                
+                ORDER BY tanggal DESC
+                LIMIT ?
+            ";
+            
+            $query = $db->query($sql, [$unitId, $userId, $maxItems]);
+            $results = $query->getResultArray();
             
             $activities = [];
-            foreach ($recentWaste as $waste) {
+            foreach ($results as $item) {
                 $activities[] = [
-                    'id' => $waste['id'],
-                    'icon' => $this->getStatusIcon($waste['status']),
-                    'message' => $this->getActivityMessage($waste),
-                    'time' => $this->timeAgo($waste['updated_at']),
-                    'status' => $waste['status'],
-                    'jenis_sampah' => $waste['jenis_sampah'] ?? 'N/A',
-                    'berat_kg' => $waste['berat_kg'] ?? 0,
-                    'nilai_rupiah' => $waste['nilai_rupiah'] ?? 0,
-                    'catatan_review' => $waste['catatan_review'] ?? '',
-                    'reviewer_name' => $waste['reviewer_name'] ?? 'Admin',
-                    'tanggal_review' => $waste['reviewed_at'] ?? $waste['updated_at'],
-                    'has_detail' => in_array($waste['status'], ['disetujui', 'ditolak'])
+                    'id' => $item['id'],
+                    'type' => $item['type'],
+                    'icon' => $this->getStatusIcon($item['status']),
+                    'message' => $this->getActivityMessageMerged($item),
+                    'time' => $this->timeAgo($item['tanggal']),
+                    'status' => $item['status'],
+                    'jenis_sampah' => $item['nama_item'] ?? 'N/A',
+                    'berat_kg' => $item['timbulan'] ?? 0,
+                    'nilai_rupiah' => $item['nilai_rupiah'] ?? 0,
+                    'catatan_review' => $item['catatan_review'] ?? '',
+                    'reviewer_name' => $item['reviewer_name'] ?? 'Admin',
+                    'tanggal_review' => $item['tanggal_review'],
+                    'has_detail' => in_array($item['status'], ['disetujui', 'ditolak', 'disetujui_tps', 'ditolak_tps'])
                 ];
             }
             
@@ -327,6 +371,37 @@ class DashboardService
         }
     }
 
+    /**
+     * Message untuk activity gabungan (waste + limbah_b3)
+     */
+    private function getActivityMessageMerged(array $item): string
+    {
+        $nama = $item['nama_item'] ?? 'Data';
+        $timbulan = $item['timbulan'] ?? 0;
+        $satuan = $item['satuan'] ?? 'kg';
+        
+        switch ($item['status']) {
+            case 'draft':
+                return "Data {$nama} {$timbulan}{$satuan} disimpan sebagai draft";
+            case 'dikirim':
+            case 'dikirim_ke_tps':
+                return "Data {$nama} {$timbulan}{$satuan} dikirim";
+            case 'review':
+                return "Data {$nama} {$timbulan}{$satuan} sedang dalam review";
+            case 'disetujui':
+            case 'disetujui_tps':
+            case 'disetujui_admin':
+                return "Data {$nama} {$timbulan}{$satuan} disetujui";
+            case 'ditolak':
+            case 'ditolak_tps':
+                return "Data {$nama} {$timbulan}{$satuan} ditolak";
+            case 'perlu_revisi':
+                return "Data {$nama} {$timbulan}{$satuan} perlu revisi";
+            default:
+                return "Data {$nama} {$timbulan}{$satuan} diperbarui";
+        }
+    }
+
     private function timeAgo(string $datetime): string
     {
         $time = time() - strtotime($datetime);
@@ -349,5 +424,25 @@ class DashboardService
             'weight_today' => 0,
             'weight_month' => 0
         ];
+    }
+
+    /**
+     * Ambil daftar Limbah B3 milik user untuk dashboard
+     * Limit ke 10 records terbaru
+     */
+    private function getLimbahB3List(int $userId): array
+    {
+        try {
+            return $this->limbahB3Model
+                ->select('limbah_b3.*, master_limbah_b3.nama_limbah')
+                ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
+                ->where('limbah_b3.id_user', $userId)
+                ->orderBy('limbah_b3.tanggal_input', 'DESC')
+                ->limit(10)
+                ->findAll();
+        } catch (\Exception $e) {
+            log_message('error', 'Error getting limbah B3 list: ' . $e->getMessage());
+            return [];
+        }
     }
 }

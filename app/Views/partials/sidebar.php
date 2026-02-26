@@ -77,6 +77,7 @@ $menus = [
             ['icon' => 'fa-tachometer-alt', 'label' => 'Dashboard', 'url' => '/user/dashboard'],
             ['section' => 'WASTE MANAGEMENT'],
             ['icon' => 'fa-trash-alt', 'label' => 'Data Sampah', 'url' => '/user/waste'],
+            ['icon' => 'fa-skull-crossbones', 'label' => 'Limbah B3', 'url' => '/user/limbah-b3'],
             ['section' => 'AKUN'],
             ['icon' => 'fa-user-circle', 'label' => 'Profil Akun', 'url' => '/user/profile'],
         ]
@@ -92,6 +93,7 @@ $menus = [
             ['icon' => 'fa-inbox', 'label' => 'Laporan Masuk', 'url' => '/pengelola-tps/laporan-masuk'],
             ['section' => 'WASTE MANAGEMENT'],
             ['icon' => 'fa-trash-alt', 'label' => 'Data Sampah', 'url' => '/pengelola-tps/waste'],
+            ['icon' => 'fa-skull-crossbones', 'label' => 'Limbah B3', 'url' => '/pengelola-tps/limbah-b3'],
             ['section' => 'AKUN'],
             ['icon' => 'fa-user-circle', 'label' => 'Profil Akun', 'url' => '/pengelola-tps/profile'],
         ]

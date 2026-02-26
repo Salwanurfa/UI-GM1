@@ -32,6 +32,7 @@ class Dashboard extends BaseController
                 'wasteStats' => $data['wasteStats'] ?? [],
                 'wasteManagementSummary' => $data['wasteManagementSummary'] ?? [],
                 'recentActivities' => $data['recent_activities'] ?? [],
+                'limbah_b3_list' => $data['limbah_b3_list'] ?? [],
                 'featureData' => $data['feature_data'] ?? []
             ];
 
@@ -49,6 +50,7 @@ class Dashboard extends BaseController
                 'wasteStats' => [],
                 'wasteManagementSummary' => [],
                 'recentActivities' => [],
+                'limbah_b3_list' => [],
                 'featureData' => [],
                 'error' => 'Terjadi kesalahan saat memuat dashboard'
             ]);
