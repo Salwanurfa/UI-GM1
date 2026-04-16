@@ -168,9 +168,19 @@ class Waste extends BaseController
                     ->setJSON(['success' => false, 'message' => 'Session invalid']);
             }
 
+            // Get session user data
+            $user = session()->get('user');
+            if (!$user || !isset($user['id'])) {
+                log_message('error', 'User Waste Save - No user in session');
+                return $this->response->setJSON(['success' => false, 'message' => 'User session tidak valid']);
+            }
+
             $postData = $this->request->getPost();
             log_message('info', 'User Waste Save - POST data: ' . json_encode($postData));
-            log_message('info', 'User Waste Save - User: ' . json_encode(session()->get('user')));
+            log_message('info', 'User Waste Save - User: ' . json_encode($user));
+            
+            // Ensure user_id is set in the data
+            $postData['user_id'] = $user['id'];
             
             $result = $this->wasteService->saveWaste($postData);
             

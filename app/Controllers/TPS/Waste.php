@@ -139,6 +139,13 @@ class Waste extends BaseController
                 return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
             }
 
+            // Get session user data
+            $user = session()->get('user');
+            if (!$user || !isset($user['id'])) {
+                log_message('error', 'TPS Waste Save - No user in session');
+                return $this->response->setJSON(['success' => false, 'message' => 'User session tidak valid']);
+            }
+
             // Get POST data
             $postData = $this->request->getPost();
             
@@ -170,13 +177,26 @@ class Waste extends BaseController
                 // Create upload directory if not exists
                 $uploadPath = WRITEPATH . 'uploads/waste_photos/';
                 if (!is_dir($uploadPath)) {
-                    mkdir($uploadPath, 0755, true);
+                    if (!mkdir($uploadPath, 0755, true)) {
+                        log_message('error', 'TPS Waste Save - Failed to create upload directory: ' . $uploadPath);
+                        return $this->response->setJSON(['success' => false, 'message' => 'Gagal membuat direktori upload: ' . $uploadPath]);
+                    }
+                    log_message('info', 'TPS Waste Save - Created upload directory: ' . $uploadPath);
+                }
+                
+                // Test if directory is writable
+                if (!is_writable($uploadPath)) {
+                    log_message('error', 'TPS Waste Save - Upload directory not writable: ' . $uploadPath);
+                    return $this->response->setJSON(['success' => false, 'message' => 'Direktori upload tidak dapat ditulis: ' . $uploadPath]);
                 }
                 
                 // Move file
-                $file->move($uploadPath, $newName);
-                $buktiFotoPath = 'waste_photos/' . $newName;
+                if (!$file->move($uploadPath, $newName)) {
+                    log_message('error', 'TPS Waste Save - Failed to move uploaded file');
+                    return $this->response->setJSON(['success' => false, 'message' => 'Gagal menyimpan file bukti foto']);
+                }
                 
+                $buktiFotoPath = 'waste_photos/' . $newName;
                 log_message('info', 'TPS Waste Save - File uploaded: ' . $buktiFotoPath);
             } else {
                 log_message('error', 'TPS Waste Save - File upload failed or not provided');
@@ -188,38 +208,53 @@ class Waste extends BaseController
             
             // Determine status based on action button
             $action = $postData['action'] ?? 'draft';
-            $status = ($action === 'kirim') ? 'dikirim_ke_tps' : 'draft';
+            $status = ($action === 'kirim') ? 'disetujui_tps' : 'draft';
             
-            // Prepare data for service
+            // Prepare data for direct model insertion (bypass service for TPS)
+            $wasteModel = new \App\Models\WasteModel();
+            
             $data = [
-                'kategori_id' => $postData['jenis_sampah'] ?? null,
-                'berat_kg' => $postData['jumlah'] ?? 0,
+                'user_id' => $user['id'],
+                'unit_id' => $user['unit_id'] ?? null,
+                'jenis_sampah' => $postData['jenis_sampah'] ?? '',
+                'nama_sampah' => $postData['jenis_sampah'] ?? '',
+                'jumlah' => (float)($postData['jumlah'] ?? 0),
                 'satuan' => $postData['satuan'] ?? 'kg',
-                'tanggal_waktu' => $postData['tanggal_waktu'] ?? date('Y-m-d H:i:s'),
+                'tanggal' => $postData['tanggal_waktu'] ?? date('Y-m-d H:i:s'),
+                'gedung' => $postData['gedung_pelapor'] ?? '',
                 'nama_pelapor' => $postData['nama_pelapor'] ?? '',
                 'gedung_pelapor' => $postData['gedung_pelapor'] ?? '',
                 'bukti_foto' => $buktiFotoPath,
-                'unit_pengirim' => $postData['unit_pengirim'] ?? null,
-                'catatan' => $postData['catatan'] ?? '',
-                'status_action' => $status
+                'catatan_admin' => $postData['catatan'] ?? '',
+                'status' => $status,
+                'created_by' => $user['id'],
+                'action_timestamp' => date('Y-m-d H:i:s')
             ];
             
-            log_message('info', 'TPS Waste Save - Received data: ' . json_encode($data));
+            log_message('info', 'TPS Waste Save - Prepared data: ' . json_encode($data));
             
-            $result = $this->wasteService->saveWaste($data);
+            // Insert data directly using model
+            $result = $wasteModel->insert($data);
             
-            // Check if this is AJAX request
-            if ($this->request->isAJAX()) {
-                return $this->response
-                    ->setContentType('application/json')
-                    ->setJSON($result);
-            }
-            
-            // Regular form submission
-            if ($result['success']) {
-                return redirect()->to('/pengelola-tps/waste')->with('success', $result['message']);
+            if ($result) {
+                $message = ($action === 'kirim') ? 'Data sampah berhasil disimpan dan dikirim' : 'Data sampah berhasil disimpan sebagai draft';
+                
+                // Check if this is AJAX request
+                if ($this->request->isAJAX()) {
+                    return $this->response
+                        ->setContentType('application/json')
+                        ->setJSON(['success' => true, 'message' => $message]);
+                }
+                
+                return redirect()->to('/pengelola-tps/waste')->with('success', $message);
             } else {
-                return redirect()->back()->withInput()->with('error', $result['message']);
+                log_message('error', 'TPS Waste Save - Model insert failed');
+                
+                if ($this->request->isAJAX()) {
+                    return $this->response->setJSON(['success' => false, 'message' => 'Gagal menyimpan data ke database']);
+                }
+                
+                return redirect()->back()->withInput()->with('error', 'Gagal menyimpan data ke database');
             }
 
         } catch (\Exception $e) {
@@ -235,7 +270,7 @@ class Waste extends BaseController
                     ]);
             }
             
-            return redirect()->back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan data');
+            return redirect()->back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage());
         }
     }
 
@@ -491,6 +526,49 @@ class Waste extends BaseController
         }
     }
 
+    public function testDatabase()
+    {
+        try {
+            $wasteModel = new \App\Models\WasteModel();
+            
+            // Test database connection
+            $db = \Config\Database::connect();
+            $query = $db->query("SELECT 1 as test");
+            $result = $query->getRow();
+            
+            if (!$result) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Database connection failed']);
+            }
+            
+            // Test table structure
+            $tableQuery = $db->query("DESCRIBE waste_management");
+            $columns = $tableQuery->getResultArray();
+            
+            // Test user session
+            $user = session()->get('user');
+            
+            return $this->response->setJSON([
+                'success' => true,
+                'message' => 'Database test successful',
+                'data' => [
+                    'database_connected' => true,
+                    'table_columns' => array_column($columns, 'Field'),
+                    'user_session' => $user ? 'Valid' : 'Invalid',
+                    'user_id' => $user['id'] ?? 'Not set',
+                    'upload_path' => WRITEPATH . 'uploads/waste_photos/',
+                    'upload_path_exists' => is_dir(WRITEPATH . 'uploads/waste_photos/'),
+                    'upload_path_writable' => is_writable(WRITEPATH . 'uploads/waste_photos/')
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Database test failed: ' . $e->getMessage()
+            ]);
+        }
+    }
+    
     private function validateSession(): bool
     {
         $session = session();

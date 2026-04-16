@@ -5,6 +5,7 @@ namespace App\Models;
 use CodeIgniter\Model;
 
 class LimbahB3Model extends Model
+
 {
     protected $table            = 'limbah_b3';
     protected $primaryKey       = 'id';
@@ -22,6 +23,7 @@ class LimbahB3Model extends Model
         'kemasan',
         'status',
         'keterangan',
+        'keterangan_bukti',  // Added for evidence description
         'tanggal_input',
     ];
 

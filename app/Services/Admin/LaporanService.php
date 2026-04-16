@@ -4,16 +4,22 @@ namespace App\Services\Admin;
 
 use App\Models\WasteModel;
 use App\Models\UnitModel;
+use App\Models\LimbahB3Model;
+use App\Models\MasterLimbahB3Model;
 
 class LaporanService
 {
     protected $wasteModel;
     protected $unitModel;
+    protected $limbahB3Model;
+    protected $masterLimbahB3Model;
 
     public function __construct()
     {
         $this->wasteModel = new WasteModel();
         $this->unitModel = new UnitModel();
+        $this->limbahB3Model = new LimbahB3Model();
+        $this->masterLimbahB3Model = new MasterLimbahB3Model();
     }
 
     public function getLaporanData(): array
@@ -23,7 +29,8 @@ class LaporanService
                 'monthly_report' => $this->getMonthlyReport(),
                 'yearly_report' => $this->getYearlyReport(),
                 'tps_report' => $this->getTpsReport(),
-                'summary_stats' => $this->getSummaryStats()
+                'summary_stats' => $this->getSummaryStats(),
+                'recap_limbah_b3' => $this->getRekapLimbahB3()
             ];
         } catch (\Exception $e) {
             log_message('error', 'Admin Laporan Service Error: ' . $e->getMessage());
@@ -32,7 +39,8 @@ class LaporanService
                 'monthly_report' => [],
                 'yearly_report' => [],
                 'tps_report' => [],
-                'summary_stats' => []
+                'summary_stats' => [],
+                'recap_limbah_b3' => []
             ];
         }
     }
@@ -43,7 +51,7 @@ class LaporanService
             $data = $this->getLaporanData();
             
             // Create CSV content
-            $csvContent = "Laporan Sistem Sampah\n";
+            $csvContent = "Laporan Sistem Sampah dan Limbah B3\n";
             $csvContent .= "Generated: " . date('Y-m-d H:i:s') . "\n\n";
             
             // Summary Stats
@@ -66,6 +74,19 @@ class LaporanService
             $csvContent .= "Nama TPS,Jumlah Entry,Total Berat (kg)\n";
             foreach ($data['tps_report'] as $tps) {
                 $csvContent .= $tps['nama_unit'] . "," . $tps['total_entries'] . "," . $tps['total_weight'] . "\n";
+            }
+            $csvContent .= "\n";
+            
+            // Rekap Limbah B3
+            $csvContent .= "REKAP LIMBAH B3\n";
+            $csvContent .= "Jenis Limbah,Total Transaksi,Disetujui,Ditolak,Berat Disetujui,Berat Ditolak\n";
+            foreach ($data['recap_limbah_b3'] as $limbah) {
+                $csvContent .= ($limbah['nama_limbah'] ?? 'N/A') . "," 
+                    . $limbah['total_transaksi'] . "," 
+                    . $limbah['total_disetujui'] . "," 
+                    . $limbah['total_ditolak'] . "," 
+                    . $limbah['total_berat_disetujui'] . "," 
+                    . $limbah['total_berat_ditolak'] . "\n";
             }
             
             // Save to temp file
@@ -128,12 +149,57 @@ class LaporanService
         $currentYear = date('Y');
         $currentMonth = date('Y-m');
         
+        // ===== WASTE MANAGEMENT DATA =====
+        $waste_total = $this->wasteModel->countAllResults();
+        $waste_total_weight = $this->wasteModel->selectSum('berat_kg')->get()->getRow()->berat_kg ?? 0;
+        $waste_this_year = $this->wasteModel->where('YEAR(created_at)', $currentYear)->countAllResults();
+        $waste_this_month = $this->wasteModel->where('DATE_FORMAT(created_at, "%Y-%m")', $currentMonth)->countAllResults();
+        
+        // ===== LIMBAH B3 DATA =====
+        $limbah_total = $this->limbahB3Model->countAllResults();
+        $limbah_total_weight = $this->limbahB3Model->selectSum('timbulan')->get()->getRow()->timbulan ?? 0;
+        $limbah_this_year = $this->limbahB3Model->where('YEAR(tanggal_input)', $currentYear)->countAllResults();
+        $limbah_this_month = $this->limbahB3Model->where('DATE_FORMAT(tanggal_input, "%Y-%m")', $currentMonth)->countAllResults();
+        
+        // ===== GABUNGAN WASTE + LIMBAH B3 =====
         return [
-            'total_entries' => $this->wasteModel->countAllResults(),
-            'total_weight' => $this->wasteModel->selectSum('berat_kg')->get()->getRow()->berat_kg ?? 0,
-            'entries_this_year' => $this->wasteModel->where('YEAR(created_at)', $currentYear)->countAllResults(),
-            'entries_this_month' => $this->wasteModel->where('DATE_FORMAT(created_at, "%Y-%m")', $currentMonth)->countAllResults(),
+            'total_entries' => $waste_total + $limbah_total,
+            'total_weight' => $waste_total_weight + $limbah_total_weight,
+            'entries_this_year' => $waste_this_year + $limbah_this_year,
+            'entries_this_month' => $waste_this_month + $limbah_this_month,
             'active_tps' => $this->unitModel->where('jenis_unit', 'TPS')->where('status_aktif', 1)->countAllResults()
         ];
+    }
+
+    /**
+     * Rekap Limbah B3 per Jenis Limbah
+     * Group by nama limbah dengan status disetujui/ditolak
+     */
+    private function getRekapLimbahB3(): array
+    {
+        try {
+            $db = \Config\Database::connect();
+            
+            $query = $db->query("
+                SELECT 
+                    master_limbah_b3.nama_limbah,
+                    master_limbah_b3.kode_limbah,
+                    COUNT(limbah_b3.id) as total_transaksi,
+                    SUM(CASE WHEN limbah_b3.status IN ('disetujui_tps', 'disetujui_admin') THEN 1 ELSE 0 END) as total_disetujui,
+                    SUM(CASE WHEN limbah_b3.status = 'ditolak_tps' THEN 1 ELSE 0 END) as total_ditolak,
+                    SUM(CASE WHEN limbah_b3.status IN ('disetujui_tps', 'disetujui_admin') THEN limbah_b3.timbulan ELSE 0 END) as total_berat_disetujui,
+                    SUM(CASE WHEN limbah_b3.status = 'ditolak_tps' THEN limbah_b3.timbulan ELSE 0 END) as total_berat_ditolak
+                FROM limbah_b3
+                LEFT JOIN master_limbah_b3 ON master_limbah_b3.id = limbah_b3.master_b3_id
+                GROUP BY limbah_b3.master_b3_id, master_limbah_b3.nama_limbah
+                ORDER BY total_transaksi DESC
+            ");
+            
+            return $query->getResultArray() ?? [];
+            
+        } catch (\Exception $e) {
+            log_message('error', 'getRekapLimbahB3 error: ' . $e->getMessage());
+            return [];
+        }
     }
 }

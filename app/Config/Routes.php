@@ -28,13 +28,23 @@ $routes->group('admin-pusat', ['filter' => 'role:admin_pusat,super_admin'], func
     require APPPATH . 'Config/Routes/Admin/user_management.php';
     require APPPATH . 'Config/Routes/Admin/unit_management.php';
     require APPPATH . 'Config/Routes/Admin/waste.php';
+    require APPPATH . 'Config/Routes/Admin/waste_standardized.php';
     require APPPATH . 'Config/Routes/Admin/review.php';
     require APPPATH . 'Config/Routes/Admin/laporan.php';
     require APPPATH . 'Config/Routes/Admin/laporan_waste.php';
-    require APPPATH . 'Config/Routes/Admin/limbah_b3.php';
+    require APPPATH . 'Config/Routes/Admin/manajemen_limbah_b3.php';
+    require APPPATH . 'Config/Routes/Admin/indikator_uigm.php';
     require APPPATH . 'Config/Routes/Admin/profil.php';
     require APPPATH . 'Config/Routes/Admin/pengaturan.php';
     require APPPATH . 'Config/Routes/Admin/uigm_categories.php';
+    require APPPATH . 'Config/Routes/Admin/transportation.php';
+    require APPPATH . 'Config/Routes/Admin/reference.php';
+    require APPPATH . 'Config/Routes/Admin/bukti_dukung.php';
+    require APPPATH . 'Config/Routes/Admin/infrastructure.php';
+    
+    // LOGBOOK ROUTES - BERSIH DAN BARU
+    $routes->get('logbook', 'Admin\\LogBook::index');
+    $routes->post('logbook/save', 'Admin\\LogBook::save');
 });
 
 // ================================================
@@ -62,6 +72,8 @@ $routes->group('user', ['filter' => 'role:user'], function ($routes) {
     $routes->post('limbah-b3/edit/(:num)', 'User\\LimbahB3::edit/$1');
     $routes->post('limbah-b3/delete/(:num)', 'User\\LimbahB3::delete/$1');
     $routes->get('limbah-b3/master/(:num)', 'User\\LimbahB3::master/$1');
+        $routes->get('limbah-b3/export-excel', 'User\\LimbahB3::exportExcel');
+        $routes->get('limbah-b3/export-pdf', 'User\\LimbahB3::exportPdf');
     
     // Profile
     $routes->get('profile', 'User\\Profile::index');
@@ -109,12 +121,58 @@ $routes->group('pengelola-tps', ['filter' => 'role:pengelola_tps'], function ($r
 });
 
 // ================================================
+// SECURITY ROUTES (Role: security)
+// ================================================
+$routes->group('security', ['filter' => 'role:security'], function ($routes) {
+    // Dashboard
+    $routes->get('dashboard', 'Security\\Dashboard::index');
+    $routes->get('/', 'Security\\Dashboard::index');
+    $routes->post('dashboard/delete/(:num)', 'Security\\Dashboard::deleteEntry/$1');
+    $routes->get('dashboard/export-pdf', 'Security\\Dashboard::exportPdf');
+    $routes->get('dashboard/export-excel', 'Security\\Dashboard::exportExcel');
+    
+    // Transportation Management
+    $routes->get('transportation', 'Security\\Transportation::index');
+    $routes->post('transportation/save', 'Security\\Transportation::save');
+    $routes->post('transportation/delete/(:num)', 'Security\\Transportation::delete/$1');
+    
+    // Profile
+    $routes->get('profile', 'Security\\Profile::index');
+    $routes->post('profile/update', 'Security\\Profile::update');
+});
+
+// ================================================
 // API ROUTES (Protected)
 // ================================================
 $routes->group('api', ['filter' => 'auth'], function ($routes) {
     $routes->get('dashboard/stats', 'Api\\DashboardApi::getStats');
     $routes->get('waste/summary', 'Api\\WasteApi::getSummary');
     $routes->post('notifications/mark-read/(:num)', 'Api\\NotificationController::markAsRead/$1');
+});
+
+// ================================================
+// FILE SERVING ROUTES (Public access to uploaded files)
+// ================================================
+$routes->get('uploads/uigm_evidence/(:any)', function($filename) {
+    $filePath = WRITEPATH . 'uploads/uigm_evidence/' . $filename;
+    
+    if (!file_exists($filePath)) {
+        throw new \CodeIgniter\Exceptions\PageNotFoundException('File not found');
+    }
+    
+    // Get file info
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $filePath);
+    finfo_close($finfo);
+    
+    // Set headers
+    header('Content-Type: ' . $mimeType);
+    header('Content-Length: ' . filesize($filePath));
+    header('Cache-Control: public, max-age=3600');
+    
+    // Output file
+    readfile($filePath);
+    exit;
 });
 
 // ================================================
@@ -132,25 +190,9 @@ $routes->set404Override(function() {
         return;
     }
     
-    // Redirect to appropriate dashboard based on role
-    $role = $user['role'] ?? null;
-    $redirectUrl = '/auth/login';
-    $message = 'Halaman tidak ditemukan.';
-    
-    switch ($role) {
-        case 'admin_pusat':
-        case 'super_admin':
-            $redirectUrl = '/admin-pusat/dashboard';
-            break;
-        case 'user':
-            $redirectUrl = '/user/dashboard';
-            break;
-        case 'pengelola_tps':
-            $redirectUrl = '/pengelola-tps/dashboard';
-            break;
-    }
-    
-    // Use header redirect instead of CodeIgniter redirect
-    header('Location: ' . base_url($redirectUrl));
-    exit;
+    // For logged in users, show 404 page instead of redirecting
+    echo view('errors/html/error_404', [
+        'message' => 'Halaman tidak ditemukan.',
+        'login_url' => null
+    ]);
 });

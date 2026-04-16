@@ -585,5 +585,165 @@ class LimbahB3Service
             return null;
         }
     }
+
+    /**
+     * Export data Limbah B3 user ke PDF
+     * 
+     * @return array Response: [success=>bool, file_path=>string, filename=>string, message=>string]
+     */
+    public function exportPdf(): array
+    {
+        try {
+            $user = session()->get('user');
+            if (!$user || !isset($user['id'])) {
+                return ['success' => false, 'message' => 'User session tidak valid'];
+            }
+
+            $userId = (int)$user['id'];
+            
+            // Ambil data limbah user dengan join ke master
+            $limbahList = $this->limbahModel
+                ->select('limbah_b3.*, master_limbah_b3.nama_limbah, master_limbah_b3.kode_limbah')
+                ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
+                ->where('limbah_b3.id_user', $userId)
+                ->orderBy('limbah_b3.tanggal_input', 'DESC')
+                ->findAll();
+
+            if (empty($limbahList)) {
+                return ['success' => false, 'message' => 'Tidak ada data Limbah B3 untuk diekspor'];
+            }
+
+            // Hitung total
+            $totalTimbulan = 0;
+            $statusCount = [
+                'draft' => 0,
+                'dikirim_ke_tps' => 0,
+                'disetujui_tps' => 0,
+                'ditolak_tps' => 0,
+                'disetujui_admin' => 0,
+            ];
+
+            foreach ($limbahList as $item) {
+                if (isset($item['timbulan'])) {
+                    $totalTimbulan += (float)$item['timbulan'];
+                }
+                if (isset($item['status'], $statusCount[$item['status']])) {
+                    $statusCount[$item['status']]++;
+                }
+            }
+
+            $data = [
+                'unit' => $this->unitModel->find($user['unit_id']),
+                'user' => $user,
+                'limbah_list' => $limbahList,
+                'total_timbulan' => $totalTimbulan,
+                'status_count' => $statusCount,
+                'generated_at' => date('d/m/Y H:i:s')
+            ];
+
+            // Generate HTML for PDF
+            $html = view('user/limbah_pdf', $data);
+
+            // Generate PDF using Dompdf
+            $options = new \Dompdf\Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+
+            // Save to temp file
+            $filename = 'limbah_b3_export_' . $user['id'] . '_' . date('Y-m-d_H-i-s') . '.pdf';
+            $filePath = WRITEPATH . 'uploads/' . $filename;
+            
+            if (!is_dir(WRITEPATH . 'uploads/')) {
+                mkdir(WRITEPATH . 'uploads/', 0755, true);
+            }
+            
+            file_put_contents($filePath, $dompdf->output());
+
+            return [
+                'success' => true,
+                'file_path' => $filePath,
+                'filename' => $filename
+            ];
+
+        } catch (\Exception $e) {
+            log_message('error', 'Export PDF User Limbah B3 Error: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            return ['success' => false, 'message' => 'Terjadi kesalahan saat export PDF: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Export data Limbah B3 user ke Excel
+     * 
+     * Output langsung ke browser sebagai download file
+     */
+    public function exportExcel(): void
+    {
+        try {
+            $user = session()->get('user');
+            if (!$user || !isset($user['id'])) {
+                echo '<script>alert("Session tidak valid"); window.history.back();</script>';
+                exit;
+            }
+
+            $userId = (int)$user['id'];
+            $unit = $this->unitModel->find($user['unit_id']);
+
+            // Ambil data limbah user dengan join ke master
+            $limbahList = $this->limbahModel
+                ->select('limbah_b3.*, master_limbah_b3.nama_limbah, master_limbah_b3.kode_limbah')
+                ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
+                ->where('limbah_b3.id_user', $userId)
+                ->orderBy('limbah_b3.tanggal_input', 'DESC')
+                ->findAll();
+            
+            if (empty($limbahList)) {
+                echo '<script>alert("Tidak ada data Limbah B3 untuk diekspor"); window.history.back();</script>';
+                exit;
+            }
+
+            // Prepare data for Excel
+            $headers = ['No', 'Tanggal', 'Nama Limbah', 'Kode', 'Lokasi', 'Timbulan', 'Satuan', 'Status'];
+            $data = [];
+            $no = 1;
+            
+            foreach ($limbahList as $limbah) {
+                $status = match($limbah['status'] ?? 'draft') {
+                    'draft' => 'Draft',
+                    'dikirim_ke_tps' => 'Menunggu Review TPS',
+                    'disetujui_tps' => 'Disetujui TPS',
+                    'ditolak_tps' => 'Ditolak TPS',
+                    'disetujui_admin' => 'Disetujui Admin',
+                    default => 'Unknown'
+                };
+                
+                $data[] = [
+                    $no++,
+                    date('d/m/Y', strtotime($limbah['tanggal_input'])),
+                    $limbah['nama_limbah'] ?? '-',
+                    $limbah['kode_limbah'] ?? '-',
+                    $limbah['lokasi'] ?? '-',
+                    number_format($limbah['timbulan'] ?? 0, 2, '.', ''),
+                    $limbah['satuan'] ?? '-',
+                    $status
+                ];
+            }
+
+            $filename = 'Data_Limbah_B3_' . ($unit['nama_unit'] ?? 'User') . '_' . date('Y-m-d_His');
+            $title = 'LAPORAN DATA LIMBAH B3 - ' . ($unit['nama_unit'] ?? 'User');
+            
+            helper('excel');
+            exportToExcel($data, $headers, $filename, $title);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Export Excel User Limbah B3 Error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
 }
 

@@ -38,6 +38,7 @@ class WasteModel extends Model
         'admin_catatan',
         'batch_id',
         'bukti_foto',
+        'keterangan_bukti',  // Added for evidence description
         'nama_pelapor',
         'gedung_pelapor',
         'reviewed_by',

@@ -35,7 +35,11 @@ $menus = [
                 'submenu' => [
                     ['label' => 'Manajemen Data Sampah', 'url' => '/admin-pusat/waste'],
                     ['label' => 'Manajemen Jenis Sampah', 'url' => '/admin-pusat/manajemen-harga'],
+                    ['label' => 'Manajemen Jenis Limbah B3', 'url' => '/admin-pusat/manajemen-limbah-b3'],
                     ['label' => 'Laporan Data Sampah', 'url' => '/admin-pusat/laporan-waste'],
+                    ['label' => 'Indikator UIGM', 'url' => '/admin-pusat/indikator-uigm'],
+                    ['label' => 'Bukti Dukung', 'url' => '/admin-pusat/bukti-dukung'],
+                    ['label' => 'LogBook Kegiatan', 'url' => '/admin-pusat/logbook'],
                 ]
             ],
             [
@@ -51,6 +55,7 @@ $menus = [
                 'label' => 'Transportation', 
                 'submenu' => [
                     ['label' => 'Data Transportasi', 'url' => '/admin-pusat/transportation'],
+                    ['label' => 'Manajemen Transportasi', 'url' => '/admin-pusat/reference'],
                     ['label' => 'Laporan', 'url' => '/admin-pusat/transportation/laporan'],
                 ]
             ],
@@ -93,9 +98,21 @@ $menus = [
             ['icon' => 'fa-inbox', 'label' => 'Laporan Masuk', 'url' => '/pengelola-tps/laporan-masuk'],
             ['section' => 'WASTE MANAGEMENT'],
             ['icon' => 'fa-trash-alt', 'label' => 'Data Sampah', 'url' => '/pengelola-tps/waste'],
-            ['icon' => 'fa-skull-crossbones', 'label' => 'Limbah B3', 'url' => '/pengelola-tps/limbah-b3'],
             ['section' => 'AKUN'],
             ['icon' => 'fa-user-circle', 'label' => 'Profil Akun', 'url' => '/pengelola-tps/profile'],
+        ]
+    ],
+    'security' => [
+        'title' => 'Security System',
+        'subtitle' => 'Satpam POLBAN',
+        'color' => '#1e3c72',
+        'color2' => '#2a5298',
+        'items' => [
+            ['icon' => 'fa-tachometer-alt', 'label' => 'Dashboard', 'url' => '/security/dashboard'],
+            ['section' => 'TRANSPORTATION'],
+            ['icon' => 'fa-car', 'label' => 'Input Transportasi', 'url' => '/security/transportation'],
+            ['section' => 'AKUN'],
+            ['icon' => 'fa-user-circle', 'label' => 'Profil Akun', 'url' => '/security/profile'],
         ]
     ]
 ];

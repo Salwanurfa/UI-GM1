@@ -20,9 +20,19 @@ class RoleFilter implements FilterInterface
 
         $user = $session->get('user');
         
-        // Validasi session user harus memiliki id, role, dan unit_id
-        if (!isset($user['id'], $user['role'], $user['unit_id'])) {
+        // Validasi session user harus memiliki id dan role
+        // unit_id tidak wajib untuk role security
+        if (!isset($user['id'], $user['role'])) {
             log_message('error', 'Invalid session data: ' . json_encode($user));
+            $session->destroy();
+            return redirect()->to('/auth/login')
+                ->with('error', 'Session tidak valid. Silakan login kembali');
+        }
+
+        // Validasi unit_id untuk role yang memerlukan unit
+        $rolesRequiringUnit = ['admin_pusat', 'super_admin', 'user', 'pengelola_tps'];
+        if (in_array($user['role'], $rolesRequiringUnit) && !isset($user['unit_id'])) {
+            log_message('error', 'Missing unit_id for role requiring unit: ' . json_encode($user));
             $session->destroy();
             return redirect()->to('/auth/login')
                 ->with('error', 'Session tidak valid. Silakan login kembali');
@@ -83,6 +93,8 @@ class RoleFilter implements FilterInterface
                 return '/user/dashboard';
             case 'pengelola_tps':
                 return '/pengelola-tps/dashboard';
+            case 'security':
+                return '/security/dashboard';
             default:
                 return '/auth/login';
         }

@@ -22,6 +22,21 @@ class LimbahB3 extends BaseController
 
         $data = $this->service->getUserIndexData();
 
+        // Get user's unit and gedung information from session
+        $session = session();
+        $user = $session->get('user');
+        $userUnit = $user['nama_unit'] ?? null;
+        $userGedung = $user['gedung'] ?? null;
+
+        // If gedung not in session, get it from database using unit_id
+        if (!$userGedung && $user['unit_id']) {
+            $unitModel = new \App\Models\UnitModel();
+            $userGedung = $unitModel->getGedungForUser($user['unit_id']);
+        }
+
+        // Use gedung as lokasi, fallback to unit name if gedung not available
+        $userLokasi = $userGedung ?: $userUnit ?: 'Gedung A – Gedung Kuliah';
+
         $viewData = [
             'title'       => 'Limbah B3 - User',
             'user'        => $data['user'],
@@ -29,6 +44,9 @@ class LimbahB3 extends BaseController
             'limbah_list' => $data['limbah_list'],
             'master_list' => $data['master_list'],
             'stats'       => $data['stats'],
+            'user_gedung' => $userGedung, // Keep for backward compatibility
+            'user_unit'   => $userUnit,   // Unit name from session
+            'user_lokasi' => $userLokasi, // Final lokasi to use (gedung preferred, unit as fallback)
         ];
 
         return view('user/limbah_b3', $viewData);
@@ -144,6 +162,49 @@ class LimbahB3 extends BaseController
         return $this->response
             ->setContentType('application/json')
             ->setJSON(['success' => true, 'data' => $row]);
+    }
+
+    /**
+     * Export data Limbah B3 ke PDF
+     */
+    public function exportPdf()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return redirect()->to('/auth/login');
+            }
+
+            $result = $this->service->exportPdf();
+            
+            if ($result['success']) {
+                return $this->response->download($result['file_path'], null)->setFileName($result['filename']);
+            }
+
+            return redirect()->back()->with('error', $result['message']);
+
+        } catch (\Exception $e) {
+            log_message('error', 'User Limbah B3 Export PDF Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat export PDF');
+        }
+    }
+
+    /**
+     * Export data Limbah B3 ke Excel
+     */
+    public function exportExcel()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return redirect()->to('/auth/login');
+            }
+
+            helper('excel');
+            $this->service->exportExcel();
+
+        } catch (\Exception $e) {
+            log_message('error', 'User Limbah B3 Export Excel Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat export Excel');
+        }
     }
 
     private function validateSession(): bool

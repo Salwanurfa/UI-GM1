@@ -240,7 +240,7 @@
             <?php foreach ($data['data_disetujui'] as $index => $item): ?>
             <tr>
                 <td class="text-center"><?= $index + 1 ?></td>
-                <td><?= date('d/m/Y H:i', strtotime($item['tanggal_input'] ?? $item['created_at'])) ?></td>
+                <td><?= format_datetime_wib($item['tanggal_input'] ?? $item['created_at']) ?></td>
                 <td><?= $item['nama_unit'] ?? 'N/A' ?></td>
                 <td><?= $item['jenis_sampah'] ?? 'N/A' ?></td>
                 <td class="text-right"><?= number_format($item['berat_kg'] ?? 0, 2) ?></td>
@@ -273,7 +273,7 @@
             <?php foreach ($data['data_ditolak'] as $index => $item): ?>
             <tr>
                 <td class="text-center"><?= $index + 1 ?></td>
-                <td><?= date('d/m/Y H:i', strtotime($item['tanggal_input'] ?? $item['created_at'])) ?></td>
+                <td><?= format_datetime_wib($item['tanggal_input'] ?? $item['created_at']) ?></td>
                 <td><?= $item['nama_unit'] ?? 'N/A' ?></td>
                 <td><?= $item['jenis_sampah'] ?? 'N/A' ?></td>
                 <td class="text-right"><?= number_format($item['berat_kg'] ?? 0, 2) ?></td>

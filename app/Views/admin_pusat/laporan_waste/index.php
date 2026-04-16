@@ -29,7 +29,7 @@ if (!function_exists('formatCurrency')) {
     <div class="main-content">
         <div class="page-header">
             <h1><i class="fas fa-chart-bar"></i> Laporan Data Sampah</h1>
-            <p>Laporan lengkap data sampah yang sudah disetujui dan ditolak</p>
+            <p>Laporan lengkap data sampah dan limbah B3 yang sudah disetujui dan ditolak</p>
         </div>
 
         <!-- Flash Messages -->
@@ -311,6 +311,56 @@ if (!function_exists('formatCurrency')) {
                 <div class="text-center py-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                     <p class="text-muted">Belum ada data laporan</p>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Rekap per Jenis Limbah B3 -->
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h3><i class="fas fa-skull-crossbones"></i> Rekap per Jenis Limbah B3</h3>
+            </div>
+            <div class="card-body">
+                <?php if (!empty($recap_limbah_b3)): ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Jenis Limbah</th>
+                                <th>Kode</th>
+                                <th>Total Transaksi</th>
+                                <th>Disetujui</th>
+                                <th>Ditolak</th>
+                                <th>Berat Disetujui</th>
+                                <th>Berat Ditolak</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($recap_limbah_b3 as $item): ?>
+                            <tr>
+                                <td><strong><?= esc($item['nama_limbah'] ?? 'N/A') ?></strong></td>
+                                <td><span class="badge bg-light text-dark"><?= esc($item['kode_limbah'] ?? '-') ?></span></td>
+                                <td><?= $item['total_transaksi'] ?? 0 ?></td>
+                                <td><span class="badge bg-success"><?= $item['total_disetujui'] ?? 0 ?></span></td>
+                                <td><span class="badge bg-danger"><?= $item['total_ditolak'] ?? 0 ?></span></td>
+                                <td><?= formatNumber($item['total_berat_disetujui'] ?? 0) ?> kg</td>
+                                <td><?= formatNumber($item['total_berat_ditolak'] ?? 0) ?> kg</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick="showDetailLimbahB3(<?= htmlspecialchars(json_encode($item), ENT_QUOTES, 'UTF-8') ?>)">
+                                        <i class="fas fa-eye"></i> Detail
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Belum ada data Limbah B3</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -976,6 +1026,36 @@ if (!function_exists('formatCurrency')) {
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${day}/${month}/${year} ${hours}:${minutes}`;
     }
+
+    function showDetailLimbahB3(data) {
+        // Set header
+        document.getElementById('limbahb3-label').textContent = 'Jenis Limbah:';
+        document.getElementById('limbahb3-name').textContent = data.nama_limbah || '-';
+        
+        // Basic info
+        document.getElementById('limbahb3-kode').textContent = data.kode_limbah || '-';
+        
+        // Data Disetujui
+        document.getElementById('limbahb3-disetujui-count').textContent = data.total_disetujui || 0;
+        document.getElementById('limbahb3-disetujui-berat').textContent = formatNumber(data.total_berat_disetujui || 0) + ' kg';
+        
+        // Data Ditolak
+        document.getElementById('limbahb3-ditolak-count').textContent = data.total_ditolak || 0;
+        document.getElementById('limbahb3-ditolak-berat').textContent = formatNumber(data.total_berat_ditolak || 0) + ' kg';
+        
+        // Total & Persentase
+        const totalTransaksi = data.total_transaksi || 0;
+        const totalDisetujui = data.total_disetujui || 0;
+        const persentase = totalTransaksi > 0 ? ((totalDisetujui / totalTransaksi) * 100).toFixed(2) : 0;
+        
+        document.getElementById('limbahb3-total-transaksi').textContent = totalTransaksi;
+        document.getElementById('limbahb3-persentase').innerHTML = 
+            '<span class="badge bg-success">' + persentase + '%</span> (' + totalDisetujui + ' dari ' + totalTransaksi + ' transaksi)';
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('detailLimbahB3Modal'));
+        modal.show();
+    }
     </script>
 
     <!-- Modal Detail Rekap Jenis Sampah -->
@@ -993,6 +1073,85 @@ if (!function_exists('formatCurrency')) {
                     <div class="text-center py-5">
                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                         <p class="text-muted">Klik tombol Detail untuk melihat rincian</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detail Limbah B3 -->
+    <div class="modal fade" id="detailLimbahB3Modal" tabindex="-1" aria-labelledby="detailLimbahB3ModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="detailLimbahB3ModalLabel">
+                        <i class="fas fa-skull-crossbones"></i> Detail Limbah B3
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Jenis Limbah</h6>
+                            <p id="limbahb3-name" class="mb-0"><strong>-</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Kode Limbah</h6>
+                            <p id="limbahb3-kode" class="mb-0"><strong>-</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Total Transaksi</h6>
+                            <p id="limbahb3-total-transaksi" class="mb-0"><strong>0</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Tingkat Persetujuan</h6>
+                            <p id="limbahb3-persentase" class="mb-0">-</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded mb-3">
+                                <h6 class="text-success mb-2">
+                                    <i class="fas fa-check-circle"></i> Data Disetujui
+                                </h6>
+                                <table class="table table-sm mb-0">
+                                    <tr>
+                                        <td class="text-muted">Jumlah:</td>
+                                        <td><span id="limbahb3-disetujui-count">0</span> transaksi</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Total Berat:</td>
+                                        <td><span id="limbahb3-disetujui-berat">0,00 kg</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded mb-3">
+                                <h6 class="text-danger mb-2">
+                                    <i class="fas fa-times-circle"></i> Data Ditolak
+                                </h6>
+                                <table class="table table-sm mb-0">
+                                    <tr>
+                                        <td class="text-muted">Jumlah:</td>
+                                        <td><span id="limbahb3-ditolak-count">0</span> transaksi</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Total Berat:</td>
+                                        <td><span id="limbahb3-ditolak-berat">0,00 kg</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1342,7 +1501,8 @@ body {
         max-width: 100%;
         height: auto;
     }
-}    /* Card headers with background */
+
+    /* Card headers with background */
     .card-header.bg-primary,
     .card-header.bg-success {
         padding: 12px 15px;

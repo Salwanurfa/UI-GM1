@@ -93,34 +93,60 @@ class WasteService
     public function saveWaste(array $data, string $userType = 'user'): array
     {
         try {
+            log_message('info', 'WasteService saveWaste - Input data: ' . json_encode($data));
+            
             $validation = $this->validateWasteData($data);
             if (!$validation['valid']) {
+                log_message('warning', 'WasteService saveWaste - Validation failed: ' . $validation['message']);
                 return ['success' => false, 'message' => $validation['message']];
             }
 
             $user = session()->get('user');
+            if (!$user || !isset($user['id'])) {
+                log_message('error', 'WasteService saveWaste - No user in session');
+                return ['success' => false, 'message' => 'User session tidak valid'];
+            }
             
+            log_message('info', 'WasteService saveWaste - User from session: ' . json_encode($user));
+            
+            // Map the data to the correct database fields
             $wasteData = [
-                'unit_id' => $user['unit_id'],
-                'kategori_id' => $data['kategori_id'],
-                'berat_kg' => $data['berat_kg'],
-                'keterangan' => $data['keterangan'] ?? '',
+                'user_id' => $user['id'],
+                'unit_id' => $user['unit_id'] ?? null,
+                'jenis_sampah' => $data['jenis_sampah'] ?? ($data['kategori_id'] ?? ''),
+                'nama_sampah' => $data['nama_sampah'] ?? ($data['jenis_sampah'] ?? ''),
+                'jumlah' => (float)($data['jumlah'] ?? ($data['berat_kg'] ?? 0)),
+                'satuan' => $data['satuan'] ?? 'kg',
+                'tanggal' => $data['tanggal'] ?? date('Y-m-d H:i:s'),
+                'gedung' => $data['gedung'] ?? '',
+                'bukti_foto' => $data['bukti_foto'] ?? null,
+                'catatan_admin' => $data['keterangan'] ?? ($data['catatan'] ?? ''),
                 'status' => 'pending',
-                'user_id' => $user['id'],  // Changed from created_by to user_id
-                'created_at' => date('Y-m-d H:i:s')
+                'created_by' => $user['id'],
+                'action_timestamp' => date('Y-m-d H:i:s')
             ];
+            
+            // Handle legacy kategori_id field
+            if (isset($data['kategori_id']) && is_numeric($data['kategori_id'])) {
+                $wasteData['kategori_id'] = $data['kategori_id'];
+            }
+            
+            log_message('info', 'WasteService saveWaste - Prepared data: ' . json_encode($wasteData));
 
             $result = $this->wasteModel->insert($wasteData);
             
             if ($result) {
-                return ['success' => true, 'message' => 'Data sampah berhasil disimpan'];
+                log_message('info', 'WasteService saveWaste - Insert successful, ID: ' . $result);
+                return ['success' => true, 'message' => 'Data sampah berhasil disimpan', 'id' => $result];
+            } else {
+                log_message('error', 'WasteService saveWaste - Insert failed');
+                return ['success' => false, 'message' => 'Gagal menyimpan data sampah ke database'];
             }
 
-            return ['success' => false, 'message' => 'Gagal menyimpan data sampah'];
-
         } catch (\Exception $e) {
-            log_message('error', 'Save Waste Error: ' . $e->getMessage());
-            return ['success' => false, 'message' => 'Terjadi kesalahan sistem'];
+            log_message('error', 'WasteService saveWaste Error: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            return ['success' => false, 'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()];
         }
     }
 
@@ -362,22 +388,27 @@ class WasteService
 
     private function validateWasteData(array $data): array
     {
-        if (empty($data['kategori_id'])) {
-            return ['valid' => false, 'message' => 'Kategori sampah harus dipilih'];
+        // Check for jenis_sampah (required)
+        if (empty($data['jenis_sampah']) && empty($data['kategori_id'])) {
+            return ['valid' => false, 'message' => 'Jenis sampah harus dipilih'];
         }
 
-        if (empty($data['berat_kg']) || !is_numeric($data['berat_kg'])) {
-            return ['valid' => false, 'message' => 'Berat sampah harus berupa angka'];
+        // Check for jumlah/berat_kg (required)
+        $jumlah = $data['jumlah'] ?? $data['berat_kg'] ?? 0;
+        if (empty($jumlah) || !is_numeric($jumlah)) {
+            return ['valid' => false, 'message' => 'Jumlah sampah harus berupa angka'];
         }
 
-        if ($data['berat_kg'] <= 0) {
-            return ['valid' => false, 'message' => 'Berat sampah harus lebih dari 0'];
+        if ($jumlah <= 0) {
+            return ['valid' => false, 'message' => 'Jumlah sampah harus lebih dari 0'];
         }
 
-        // Check if category exists and is active
-        $category = $this->hargaModel->find($data['kategori_id']);
-        if (!$category || $category['status'] !== 'active') {
-            return ['valid' => false, 'message' => 'Kategori sampah tidak valid atau tidak aktif'];
+        // If kategori_id is provided, validate it exists
+        if (!empty($data['kategori_id']) && is_numeric($data['kategori_id'])) {
+            $category = $this->hargaModel->find($data['kategori_id']);
+            if (!$category || $category['status'] !== 'active') {
+                return ['valid' => false, 'message' => 'Kategori sampah tidak valid atau tidak aktif'];
+            }
         }
 
         return ['valid' => true, 'message' => ''];

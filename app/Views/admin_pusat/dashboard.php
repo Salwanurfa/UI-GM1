@@ -217,6 +217,14 @@ if (!function_exists('formatCurrency')) {
                                 <i class="fas fa-users-cog"></i>
                                 <span>Kelola Users</span>
                             </a>
+                            <a href="<?= base_url('/admin-pusat/manajemen-limbah-b3') ?>" class="quick-action-btn">
+                                <i class="fas fa-biohazard"></i>
+                                <span>Kelola Limbah B3</span>
+                            </a>
+                            <a href="<?= base_url('/admin-pusat/indikator-uigm') ?>" class="quick-action-btn">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Indikator UIGM</span>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -342,6 +350,262 @@ if (!function_exists('formatCurrency')) {
                         </div>
                     </div>
                     <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transportation Statistics Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3><i class="fas fa-car text-primary"></i> Statistik Transportasi Kampus</h3>
+                        <div class="d-flex gap-2">
+                            <a href="<?= base_url('/admin-pusat/transportation') ?>" class="btn btn-primary btn-sm">
+                                <i class="fas fa-eye"></i> Lihat Detail
+                            </a>
+                            <a href="<?= base_url('/admin-pusat/transportation/export-pdf') ?>" 
+                               class="btn btn-danger btn-sm" 
+                               target="_blank">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                            <a href="<?= base_url('/admin-pusat/transportation/export-excel') ?>" 
+                               class="btn btn-success btn-sm">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Transportation Summary Stats -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-primary bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-car fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= number_format($transportStats['total_vehicles'] ?? 0) ?></h4>
+                                        <small>Total Kendaraan</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-success bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-leaf fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= number_format($transportStats['total_zev'] ?? 0) ?></h4>
+                                        <small>ZEV (TR 3 & 4)</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-info bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-bus fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= number_format($transportStats['total_shuttle'] ?? 0) ?></h4>
+                                        <small>Shuttle (TR 2)</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-warning bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-user-shield fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= $transportStats['total_officers'] ?? 0 ?></h4>
+                                        <small>Petugas Aktif</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Transportation Entries -->
+                        <?php if (!empty($recentTransportEntries)): ?>
+                            <h5 class="mb-3"><i class="fas fa-history"></i> Entry Terbaru</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Periode</th>
+                                            <th>Kategori</th>
+                                            <th>Bahan Bakar</th>
+                                            <th>Jumlah</th>
+                                            <th>Petugas</th>
+                                            <th>Tanggal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($recentTransportEntries as $entry): ?>
+                                            <tr>
+                                                <td>
+                                                    <strong><?= esc($entry['periode']) ?></strong>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        <span class="badge bg-primary">
+                                                            <?= esc($entry['kategori_kendaraan']) ?>
+                                                        </span>
+                                                        <?php if ($entry['is_zev']): ?>
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-leaf"></i> ZEV
+                                                            </span>
+                                                        <?php endif; ?>
+                                                        <?php if ($entry['is_shuttle']): ?>
+                                                            <span class="badge bg-info">
+                                                                <i class="fas fa-bus"></i> Shuttle
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-success">
+                                                        <?= esc($entry['jenis_bahan_bakar']) ?>
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <strong><?= number_format($entry['jumlah_total']) ?></strong>
+                                                </td>
+                                                <td>
+                                                    <i class="fas fa-user-shield text-muted me-1"></i>
+                                                    <?= esc($entry['petugas_nama']) ?>
+                                                </td>
+                                                <td class="text-center">
+                                                    <small><?= date('d/m/Y H:i', strtotime($entry['created_at'])) ?></small>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center py-4">
+                                <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Belum ada data transportasi</h5>
+                                <p class="text-muted">Data akan muncul setelah Security menginput statistik transportasi</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Infrastructure & Population Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3><i class="fas fa-building text-success"></i> Infrastruktur & Populasi Kampus</h3>
+                        <div class="d-flex gap-2">
+                            <a href="<?= base_url('/admin-pusat/infrastructure') ?>" class="btn btn-success btn-sm">
+                                <i class="fas fa-cog"></i> Kelola Data
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- UIGM Ratios Summary -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-primary bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-users fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= $uigmRatios['vehicle_population_ratio'] ?>%</h4>
+                                        <small>TR 1: Rasio Kendaraan/Populasi</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-success bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-leaf fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= $uigmRatios['zev_ratio'] ?>%</h4>
+                                        <small>TR 4: Rasio ZEV</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-info bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-parking fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= $uigmRatios['parking_ratio'] ?>%</h4>
+                                        <small>TR 5&6: Rasio Area Parkir</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center p-3 bg-warning bg-gradient text-white rounded">
+                                    <div class="me-3">
+                                        <i class="fas fa-bus fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0"><?= $uigmRatios['shuttle_ratio'] ?>%</h4>
+                                        <small>TR 2: Layanan Shuttle</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Infrastructure & Population Details -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="mb-3"><i class="fas fa-building"></i> Data Infrastruktur (<?= $infrastructureStats['tahun_akademik'] ?>)</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Luas Total Kampus:</strong></td>
+                                            <td class="text-end"><?= number_format($infrastructureStats['luas_total_kampus']) ?> m²</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Luas Area Parkir:</strong></td>
+                                            <td class="text-end"><?= number_format($infrastructureStats['luas_area_parkir_total']) ?> m²</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Parkir Terbuka:</strong></td>
+                                            <td class="text-end"><?= number_format($infrastructureStats['luas_parkir_terbuka']) ?> m²</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Parkir Berkanopi:</strong></td>
+                                            <td class="text-end"><?= number_format($infrastructureStats['luas_parkir_berkanopi']) ?> m²</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h5 class="mb-3"><i class="fas fa-users"></i> Data Populasi (<?= $populationStats['tahun_akademik'] ?>)</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <td><strong>Jumlah Dosen:</strong></td>
+                                            <td class="text-end"><?= number_format($populationStats['jumlah_dosen']) ?> orang</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Jumlah Mahasiswa:</strong></td>
+                                            <td class="text-end"><?= number_format($populationStats['jumlah_mahasiswa']) ?> orang</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Tenaga Kependidikan:</strong></td>
+                                            <td class="text-end"><?= number_format($populationStats['jumlah_tenaga_kependidikan']) ?> orang</td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>Total Populasi:</strong></td>
+                                            <td class="text-end"><strong><?= number_format($populationStats['total_populasi']) ?> orang</strong></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

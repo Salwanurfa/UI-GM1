@@ -113,7 +113,7 @@ class Auth extends BaseController
             }
 
             // Validasi role
-            $allowedRoles = ['admin_pusat', 'super_admin', 'user', 'pengelola_tps'];
+            $allowedRoles = ['admin_pusat', 'super_admin', 'user', 'pengelola_tps', 'security'];
             
             if (empty($user['role'])) {
                 return redirect()->back()
@@ -202,6 +202,10 @@ class Auth extends BaseController
             case 'pengelola_tps':
                 return redirect()->to('/pengelola-tps/dashboard')
                     ->with('success', 'Selamat datang di Dashboard TPS');
+
+            case 'security':
+                return redirect()->to('/security/dashboard')
+                    ->with('success', 'Selamat datang di Dashboard Security');
 
             default:
                 session()->destroy();

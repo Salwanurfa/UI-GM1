@@ -419,6 +419,26 @@ if (!function_exists('getActionIcon')) {
             font-size: 11px;
         }
     }
+
+    /* Navigation Link Hover Effect */
+    .hover-underline:hover {
+        text-decoration: underline !important;
+        color: #0056b3 !important;
+    }
+
+    .hover-underline {
+        transition: all 0.2s ease-in-out;
+    }
+
+    .hover-underline:hover i.fa-arrow-down {
+        transform: translateY(2px);
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .hover-underline:hover i:not(.fa-arrow-down) {
+        transform: translateX(2px);
+        transition: transform 0.2s ease-in-out;
+    }
     </style>
 </head>
 <body>
@@ -434,6 +454,9 @@ if (!function_exists('getActionIcon')) {
             <div class="header-actions">
                 <button type="button" class="btn btn-primary" onclick="showAddModal()">
                     <i class="fas fa-plus"></i> Tambah Jenis Sampah
+                </button>
+                <button type="button" class="btn btn-success" onclick="showAddCategoryModal()">
+                    <i class="fas fa-plus"></i> Tambah Kategori
                 </button>
                 <a href="<?= base_url('/admin-pusat/manajemen-harga/logs') ?>" class="btn btn-outline-info">
                     <i class="fas fa-history"></i> Log Perubahan
@@ -774,12 +797,20 @@ if (!function_exists('getActionIcon')) {
                 </div>
                 <form id="addJenisSampahForm">
                     <div class="modal-body">
-                        <!-- Kategori Sampah (input text, bukan dropdown) -->
+                        <!-- Kategori Sampah (dropdown) -->
                         <div class="mb-3">
                             <label for="add_jenis_sampah" class="form-label">Kategori Sampah *</label>
-                            <input type="text" class="form-control" id="add_jenis_sampah" name="jenis_sampah" 
-                                   placeholder="Contoh: Plastik, Kertas, Logam, Organik, Residu" required>
-                            <small class="text-muted">Ketik kategori sampah (Plastik, Kertas, Logam, Organik, Residu, dll)</small>
+                            <select class="form-select" id="add_jenis_sampah" name="jenis_sampah" required>
+                                <option value="">Pilih Kategori Sampah</option>
+                                <?php if (!empty($categories)): ?>
+                                    <?php foreach ($categories as $category): ?>
+                                        <option value="<?= esc($category['kategori_utama']) ?>">
+                                            <?= esc($category['kategori_utama']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                            <small class="text-muted">Pilih kategori sampah atau tambah kategori baru dengan tombol "Tambah Kategori"</small>
                         </div>
                         
                         <div class="mb-3">
@@ -855,6 +886,131 @@ if (!function_exists('getActionIcon')) {
         </div>
     </div>
 
+    <!-- Modal Tambah Kategori -->
+    <div class="modal fade" id="modalTambahKategori" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Tambah Kategori Sampah</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="addCategoryForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="kategori_utama" class="form-label">Nama Kategori *</label>
+                            <input type="text" class="form-control" id="kategori_utama" name="kategori_utama" 
+                                   placeholder="Contoh: Organik, Anorganik, B3, Elektronik" required>
+                            <small class="text-muted">Masukkan nama kategori sampah baru</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="deskripsi_kategori" class="form-label">Deskripsi Singkat</label>
+                            <textarea class="form-control" id="deskripsi_kategori" name="deskripsi" rows="3" 
+                                      placeholder="Deskripsi singkat tentang kategori ini (opsional)"></textarea>
+                            <small class="text-muted">Deskripsi ini akan membantu pengguna memahami kategori</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <div class="d-flex justify-content-between align-items-center w-100">
+                            <div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="openManageCategoryModal()">
+                                    <i class="fas fa-cog me-1"></i> ⚙️ Kelola Kategori
+                                </button>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="fas fa-times"></i> Batal
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> Simpan Kategori
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Manajemen Kategori -->
+    <div class="modal fade" id="manageCategoryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-cogs"></i> Manajemen Kategori Sampah</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Daftar Kategori Sampah</h6>
+                        <button type="button" class="btn btn-success btn-sm" onclick="openAddCategoryFromManage()">
+                            <i class="fas fa-plus"></i> Tambah Kategori Baru
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="manageCategoryTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 10%;">No</th>
+                                    <th style="width: 60%;">Nama Kategori</th>
+                                    <th style="width: 20%;">Status</th>
+                                    <th style="width: 10%;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="manageCategoryTableBody">
+                                <!-- Data will be loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="noCategoriesMessage" class="text-center py-4" style="display: none;">
+                        <i class="fas fa-tags fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Belum ada kategori sampah</p>
+                        <button type="button" class="btn btn-success btn-sm" onclick="openAddCategoryFromManage()">
+                            <i class="fas fa-plus"></i> Tambah Kategori Pertama
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit Kategori -->
+    <div class="modal fade" id="modalEditKategori" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Kategori Sampah</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editCategoryForm">
+                    <input type="hidden" id="edit_category_id" name="category_id">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_kategori_utama" class="form-label">Nama Kategori *</label>
+                            <input type="text" class="form-control" id="edit_kategori_utama" name="kategori_utama" 
+                                   placeholder="Contoh: Organik, Anorganik, B3, Elektronik" required>
+                            <small class="text-muted">Masukkan nama kategori sampah</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Batal
+                        </button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save"></i> Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Harga Modal -->
     <div class="modal fade" id="editHargaModal" tabindex="-1">
         <div class="modal-dialog">
@@ -866,12 +1022,20 @@ if (!function_exists('getActionIcon')) {
                 <form id="editHargaForm">
                     <input type="hidden" id="edit_id" name="id">
                     <div class="modal-body">
-                        <!-- Kategori Sampah (input text, bukan dropdown) -->
+                        <!-- Kategori Sampah (dropdown) -->
                         <div class="mb-3">
                             <label for="edit_jenis_sampah" class="form-label">Kategori Sampah *</label>
-                            <input type="text" class="form-control" id="edit_jenis_sampah" name="jenis_sampah" 
-                                   placeholder="Contoh: Plastik, Kertas, Logam, Organik, Residu" required>
-                            <small class="text-muted">Ketik kategori sampah (Plastik, Kertas, Logam, Organik, Residu, dll)</small>
+                            <select class="form-select" id="edit_jenis_sampah" name="jenis_sampah" required>
+                                <option value="">Pilih Kategori Sampah</option>
+                                <?php if (!empty($categories)): ?>
+                                    <?php foreach ($categories as $category): ?>
+                                        <option value="<?= esc($category['kategori_utama']) ?>">
+                                            <?= esc($category['kategori_utama']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                            <small class="text-muted">Pilih kategori sampah atau tambah kategori baru dengan tombol "Tambah Kategori"</small>
                         </div>
                         
                         <div class="mb-3">
@@ -1448,6 +1612,428 @@ if (!function_exists('getActionIcon')) {
                     minute: '2-digit'
                 });
             }
+        });
+
+        // Open Management Category Modal
+        function openManageCategoryModal() {
+            // Close the add category modal first
+            const addModal = bootstrap.Modal.getInstance(document.getElementById('modalTambahKategori'));
+            if (addModal) {
+                addModal.hide();
+            }
+            
+            // Wait for the add modal to close, then open manage modal
+            setTimeout(() => {
+                // Load categories data
+                loadCategoriesIntoManageModal();
+                
+                // Show manage modal
+                const manageModal = new bootstrap.Modal(document.getElementById('manageCategoryModal'));
+                manageModal.show();
+            }, 300);
+        }
+
+        // Open Add Category Modal from Manage Modal
+        function openAddCategoryFromManage() {
+            // Close manage modal first
+            const manageModal = bootstrap.Modal.getInstance(document.getElementById('manageCategoryModal'));
+            if (manageModal) {
+                manageModal.hide();
+            }
+            
+            // Wait for manage modal to close, then open add modal
+            setTimeout(() => {
+                showAddCategoryModal();
+            }, 300);
+        }
+
+        // Load categories into manage modal
+        function loadCategoriesIntoManageModal() {
+            const tableBody = document.getElementById('manageCategoryTableBody');
+            const noDataMessage = document.getElementById('noCategoriesMessage');
+            
+            // Show loading state
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin"></i> Memuat data...</td></tr>';
+            
+            // Fetch fresh categories from server
+            fetch('<?= base_url('/admin-pusat/manajemen-harga/categories') ?>', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(categories => {
+                if (categories.length === 0) {
+                    tableBody.innerHTML = '';
+                    noDataMessage.style.display = 'block';
+                } else {
+                    noDataMessage.style.display = 'none';
+                    let html = '';
+                    
+                    categories.forEach((category, index) => {
+                        html += `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tag text-primary me-2"></i>
+                                        <strong>${escapeHtml(category.kategori_utama)}</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    ${category.status_aktif == 1 ? 
+                                        '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Aktif</span>' : 
+                                        '<span class="badge bg-secondary"><i class="fas fa-times-circle"></i> Nonaktif</span>'
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                onclick="editCategoryFromManage(${category.id})" 
+                                                title="Edit Kategori">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="deleteCategoryFromManage(${category.id}, '${escapeHtml(category.kategori_utama)}')" 
+                                                title="Hapus Kategori">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableBody.innerHTML = html;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading categories:', error);
+                // Fallback to PHP data if AJAX fails
+                const categories = <?= json_encode($categories ?? []) ?>;
+                
+                if (categories.length === 0) {
+                    tableBody.innerHTML = '';
+                    noDataMessage.style.display = 'block';
+                } else {
+                    noDataMessage.style.display = 'none';
+                    let html = '';
+                    
+                    categories.forEach((category, index) => {
+                        html += `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tag text-primary me-2"></i>
+                                        <strong>${escapeHtml(category.kategori_utama)}</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    ${category.status_aktif == 1 ? 
+                                        '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Aktif</span>' : 
+                                        '<span class="badge bg-secondary"><i class="fas fa-times-circle"></i> Nonaktif</span>'
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                onclick="editCategoryFromManage(${category.id})" 
+                                                title="Edit Kategori">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="deleteCategoryFromManage(${category.id}, '${escapeHtml(category.kategori_utama)}')" 
+                                                title="Hapus Kategori">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableBody.innerHTML = html;
+                }
+            });
+        }
+
+        // Edit category from manage modal
+        function editCategoryFromManage(id) {
+            // Close manage modal
+            const manageModal = bootstrap.Modal.getInstance(document.getElementById('manageCategoryModal'));
+            if (manageModal) {
+                manageModal.hide();
+            }
+            
+            // Wait for manage modal to close, then open edit modal
+            setTimeout(() => {
+                editCategory(id);
+            }, 300);
+        }
+
+        // Delete category from manage modal
+        function deleteCategoryFromManage(id, categoryName) {
+            deleteCategory(id, categoryName);
+        }
+
+        // Refresh dropdowns with latest categories
+        function refreshCategoryDropdowns() {
+            fetch('<?= base_url('/admin-pusat/manajemen-harga/categories') ?>', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(categories => {
+                // Update add form dropdown
+                const addSelect = document.getElementById('add_jenis_sampah');
+                if (addSelect) {
+                    const currentValue = addSelect.value;
+                    addSelect.innerHTML = '<option value="">Pilih Kategori Sampah</option>';
+                    
+                    categories.forEach(category => {
+                        if (category.status_aktif == 1) {
+                            const option = document.createElement('option');
+                            option.value = category.kategori_utama;
+                            option.textContent = category.kategori_utama;
+                            addSelect.appendChild(option);
+                        }
+                    });
+                    
+                    // Restore previous selection if still exists
+                    if (currentValue) {
+                        addSelect.value = currentValue;
+                    }
+                }
+                
+                // Update edit form dropdown
+                const editSelect = document.getElementById('edit_jenis_sampah');
+                if (editSelect) {
+                    const currentValue = editSelect.value;
+                    editSelect.innerHTML = '<option value="">Pilih Kategori Sampah</option>';
+                    
+                    categories.forEach(category => {
+                        if (category.status_aktif == 1) {
+                            const option = document.createElement('option');
+                            option.value = category.kategori_utama;
+                            option.textContent = category.kategori_utama;
+                            editSelect.appendChild(option);
+                        }
+                    });
+                    
+                    // Restore previous selection if still exists
+                    if (currentValue) {
+                        editSelect.value = currentValue;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error refreshing dropdowns:', error);
+            });
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Edit Category function
+        function editCategory(id) {
+            fetch(`<?= base_url('/admin-pusat/manajemen-harga/get-category/') ?>${id}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const category = data.data;
+                    // Populate edit modal fields
+                    document.getElementById('edit_category_id').value = category.id;
+                    document.getElementById('edit_kategori_utama').value = category.kategori_utama;
+                    
+                    // Show modal
+                    const modal = new bootstrap.Modal(document.getElementById('modalEditKategori'));
+                    modal.show();
+                } else {
+                    showAlert('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'Terjadi kesalahan saat mengambil data kategori');
+            });
+        }
+
+        // Delete Category function
+        function deleteCategory(id, categoryName) {
+            // Use confirmation dialog
+            if (confirm(`Apakah Anda yakin ingin menghapus kategori "${categoryName}"?\n\nPerhatian: Kategori yang masih digunakan oleh jenis sampah tidak dapat dihapus.`)) {
+                fetch(`<?= base_url('/admin-pusat/manajemen-harga/delete-category/') ?>${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', data.message);
+                        
+                        // Refresh manage modal if it's open
+                        const manageModal = bootstrap.Modal.getInstance(document.getElementById('manageCategoryModal'));
+                        if (manageModal) {
+                            setTimeout(() => {
+                                loadCategoriesIntoManageModal();
+                            }, 1000);
+                        }
+                        
+                        // Refresh dropdowns without page reload
+                        refreshCategoryDropdowns();
+                    } else {
+                        showAlert('error', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('error', 'Terjadi kesalahan saat menghapus kategori');
+                });
+            }
+        }
+
+        // Navigate to Category Management Section (Updated to use modal)
+        function navigateToManageCategories() {
+            // This function now opens the manage modal instead of scrolling
+            openManageCategoryModal();
+        }
+
+        // Show Add Category Modal
+        function showAddCategoryModal() {
+            // Reset form
+            document.getElementById('addCategoryForm').reset();
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalTambahKategori'));
+            modal.show();
+        }
+
+        // Handle add category form submit
+        document.getElementById('addCategoryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Validasi kategori_utama
+            const kategoriUtama = formData.get('kategori_utama');
+            if (!kategoriUtama) {
+                showAlert('error', 'Silakan isi nama kategori');
+                return;
+            }
+
+            // Add CSRF token
+            const csrfName = document.querySelector('meta[name="csrf-name"]')?.getAttribute('content');
+            const csrfHash = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (csrfName && csrfHash) {
+                formData.append(csrfName, csrfHash);
+            }
+
+            fetch('<?= base_url('/admin-pusat/manajemen-harga/store-category') ?>', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalTambahKategori'));
+                    modal.hide();
+                    
+                    // Refresh dropdowns without page reload
+                    refreshCategoryDropdowns();
+                    
+                    // If manage modal is open, refresh it too
+                    const manageModal = bootstrap.Modal.getInstance(document.getElementById('manageCategoryModal'));
+                    if (manageModal) {
+                        setTimeout(() => {
+                            loadCategoriesIntoManageModal();
+                        }, 500);
+                    }
+                    
+                } else {
+                    showAlert('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'Terjadi kesalahan saat menyimpan kategori: ' + error.message);
+            });
+        });
+
+        // Handle edit category form submit
+        document.getElementById('editCategoryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const categoryId = document.getElementById('edit_category_id').value;
+            
+            // Validasi kategori_utama
+            const kategoriUtama = formData.get('kategori_utama');
+            if (!kategoriUtama) {
+                showAlert('error', 'Silakan isi nama kategori');
+                return;
+            }
+
+            // Add CSRF token
+            const csrfName = document.querySelector('meta[name="csrf-name"]')?.getAttribute('content');
+            const csrfHash = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (csrfName && csrfHash) {
+                formData.append(csrfName, csrfHash);
+            }
+
+            fetch(`<?= base_url('/admin-pusat/manajemen-harga/update-category/') ?>${categoryId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    
+                    // Close edit modal
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('modalEditKategori'));
+                    editModal.hide();
+                    
+                    // Refresh manage modal if it's open
+                    setTimeout(() => {
+                        const manageModal = bootstrap.Modal.getInstance(document.getElementById('manageCategoryModal'));
+                        if (manageModal) {
+                            loadCategoriesIntoManageModal();
+                            manageModal.show();
+                        }
+                    }, 300);
+                    
+                    // Refresh dropdowns without page reload
+                    refreshCategoryDropdowns();
+                    
+                } else {
+                    showAlert('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'Terjadi kesalahan saat memperbarui kategori: ' + error.message);
+            });
         });
     </script>
     <!-- Mobile Menu JS -->

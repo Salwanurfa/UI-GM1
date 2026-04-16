@@ -707,7 +707,7 @@ $stats = $stats ?? [];
                     <h5 class="modal-title">Tambah Data Sampah</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="addWasteForm">
+                <form id="addWasteForm" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <div class="modal-body">
                         <div class="mb-3">
@@ -801,7 +801,7 @@ $stats = $stats ?? [];
                     <h5 class="modal-title">Edit Data Sampah</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="editWasteForm">
+                <form id="editWasteForm" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <input type="hidden" id="edit_waste_id" name="waste_id">
                     <div class="modal-body">
@@ -843,6 +843,18 @@ $stats = $stats ?? [];
                             <div class="alert alert-info">
                                 <strong>Berat dalam kg:</strong> <span id="edit_berat_kg_display">0 kg</span><br>
                                 <strong>Estimasi Nilai:</strong> <span id="edit_estimasi_nilai">Rp 0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="edit_foto" class="form-label">
+                                Update Bukti Foto (Opsional)
+                                <i class="fas fa-info-circle text-muted" data-tooltip="Upload foto baru jika ingin mengganti foto sebelumnya. Format: JPG, PNG, JPEG. Maksimal 2MB." data-tooltip-position="top"></i>
+                            </label>
+                            <input type="file" class="form-control" id="edit_foto" name="foto" accept="image/jpeg,image/png,image/jpg">
+                            <small class="text-muted">Kosongkan jika tidak ingin mengubah foto</small>
+                            <div id="edit_foto_preview" class="mt-2" style="display: none;">
+                                <img id="edit_foto_preview_img" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #ddd;">
                             </div>
                         </div>
                     </div>
@@ -1026,6 +1038,39 @@ $stats = $stats ?? [];
                 reader.readAsDataURL(file);
             } else {
                 document.getElementById('foto_preview').style.display = 'none';
+            }
+        });
+
+        // Preview foto edit
+        document.getElementById('edit_foto').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validasi ukuran file (max 2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    toast.error('Ukuran file terlalu besar! Maksimal 2MB');
+                    this.value = '';
+                    document.getElementById('edit_foto_preview').style.display = 'none';
+                    return;
+                }
+                
+                // Validasi tipe file
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+                if (!allowedTypes.includes(file.type)) {
+                    toast.error('Format file tidak didukung! Gunakan JPG, PNG, atau JPEG');
+                    this.value = '';
+                    document.getElementById('edit_foto_preview').style.display = 'none';
+                    return;
+                }
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('edit_foto_preview_img').src = e.target.result;
+                    document.getElementById('edit_foto_preview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                document.getElementById('edit_foto_preview').style.display = 'none';
             }
         });
 

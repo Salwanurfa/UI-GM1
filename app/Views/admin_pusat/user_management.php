@@ -227,6 +227,10 @@
                                 <td><?= date('d/m/Y', strtotime($userData['created_at'])) ?></td>
                                 <td>
                                     <div class="action-buttons">
+                                        <a href="<?= base_url('/admin-pusat/user-management/user-log/' . $userData['id']) ?>" 
+                                           class="btn btn-sm btn-secondary" title="Lihat Log Aktivitas">
+                                            <i class="fas fa-history"></i>
+                                        </a>
                                         <button type="button" class="btn btn-sm btn-warning" 
                                                 onclick="editUser(<?= $userData['id'] ?>)">
                                             <i class="fas fa-edit"></i>

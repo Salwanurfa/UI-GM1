@@ -162,10 +162,10 @@ $user = $user ?? [];
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLimbahB3Modal">
             <i class="fas fa-plus"></i> Tambah Limbah B3
         </button>
-        <a href="<?= base_url('/user/limbah-b3/export-excel') ?>" class="btn btn-success d-none">
+        <a href="<?= base_url('/user/limbah-b3/export-excel') ?>" class="btn btn-success">
             <i class="fas fa-file-excel"></i> Export Excel
         </a>
-        <a href="<?= base_url('/user/limbah-b3/export-pdf') ?>" class="btn btn-danger d-none" target="_blank">
+        <a href="<?= base_url('/user/limbah-b3/export-pdf') ?>" class="btn btn-danger" target="_blank">
             <i class="fas fa-file-pdf"></i> Export PDF
         </a>
     </div>
@@ -482,7 +482,9 @@ $user = $user ?? [];
                                     <?php foreach ($master_list as $m): ?>
                                         <option value="<?= (int) $m['id'] ?>" 
                                                 data-kode="<?= esc($m['kode_limbah'] ?? '') ?>"
-                                                data-kategori="<?= esc($m['kategori_bahaya'] ?? '') ?>">
+                                                data-kategori="<?= esc($m['kategori_bahaya'] ?? '') ?>"
+                                                data-bentuk-fisik="<?= esc($m['bentuk_fisik'] ?? '') ?>"
+                                                data-kemasan="<?= esc($m['kemasan'] ?? '') ?>">
                                             <?= esc($m['nama_limbah']) ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -632,18 +634,24 @@ $user = $user ?? [];
             dropdownParent: $('#addLimbahB3Modal')
         });
 
-        // Auto-fill Kode Limbah & Kategori Bahaya dari data attributes master
+        // Auto-fill Kode Limbah, Kategori Bahaya, Bentuk Fisik, dan Kemasan dari data attributes master
         // Triggered when user changes the master_b3_id dropdown
         $('#master_b3_id').on('change', function() {
             const selectedOption = $(this).find('option:selected');
             const kode = selectedOption.data('kode') || '';
             const kategori = selectedOption.data('kategori') || '';
+            const bentukFisik = selectedOption.data('bentuk-fisik') || '';
+            const kemasan = selectedOption.data('kemasan') || '';
             
             // Set readonly fields dengan value dari master data
             $('#kode_limbah_display').val(kode);
             $('#kategori_bahaya_display').val(kategori);
             
-            console.log('Master selected - Kode:', kode, 'Kategori:', kategori);
+            // Set dropdown values untuk bentuk_fisik dan kemasan
+            $('#bentuk_fisik').val(bentukFisik);
+            $('#kemasan').val(kemasan);
+            
+            console.log('Master selected - Kode:', kode, 'Kategori:', kategori, 'Bentuk Fisik:', bentukFisik, 'Kemasan:', kemasan);
         });
 
         // Reset form when modal is closed
@@ -663,6 +671,10 @@ $user = $user ?? [];
         // Clear kode and kategori
         $('#kode_limbah_display').val('');
         $('#kategori_bahaya_display').val('');
+        
+        // Clear bentuk_fisik and kemasan dropdowns
+        $('#bentuk_fisik').val('');
+        $('#kemasan').val('');
         
         // Reset Select2
         $('#master_b3_id').val(null).trigger('change');
@@ -808,6 +820,14 @@ $user = $user ?? [];
                 const selectedOption = $('#master_b3_id').find('option:selected');
                 $('#kode_limbah_display').val(selectedOption.data('kode') || row.kode_limbah || '');
                 $('#kategori_bahaya_display').val(selectedOption.data('kategori') || row.kategori_bahaya || '');
+                
+                // Auto-fill bentuk_fisik and kemasan if not already set from form data
+                if (!row.bentuk_fisik) {
+                    $('#bentuk_fisik').val(selectedOption.data('bentuk-fisik') || '');
+                }
+                if (!row.kemasan) {
+                    $('#kemasan').val(selectedOption.data('kemasan') || '');
+                }
             }, 100);
 
             // Show modal
@@ -909,7 +929,7 @@ $user = $user ?? [];
 
     .stat-card.primary { border-left-color: #007bff; }
     .stat-card.success { border-left-color: #28a745; }
-    .stat-card.warning { border-left-color: #ffc107; }
+    .stat-card.warning { border-left-color: #5f5e5d; }
     .stat-card.info { border-left-color: #17a2b8; }
     .stat-card.danger { border-left-color: #dc3545; }
     .stat-card.secondary { border-left-color: #6c757d; }
@@ -929,7 +949,7 @@ $user = $user ?? [];
     .stat-card.primary .stat-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     .stat-card.success .stat-icon { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
     .stat-card.warning .stat-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-    .stat-card.info .stat-icon { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .stat-card.info .stat-icon { background: linear-gradient(135deg, #fa709a 0%, #595958 100%); }
     .stat-card.danger .stat-icon { background: linear-gradient(135deg, #eb3b5a 0%, #fc5c65 100%); }
     .stat-card.secondary .stat-icon { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
 

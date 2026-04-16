@@ -7,8 +7,16 @@
 
 $routes->get('manajemen-harga', 'Admin\\Harga::index');
 $routes->get('manajemen-harga/test-simple', 'Admin\\Harga::testSimple'); // Test view untuk debug
+$routes->get('manajemen-harga/seed-categories', 'Admin\\Harga::seedCategories'); // Seed standard categories
+$routes->get('manajemen-harga/fix-collation', 'Admin\\Harga::fixCollation'); // Fix database collation
+$routes->get('manajemen-harga/debug-collation', 'Admin\\Harga::debugCollation'); // Debug collation issues
 $routes->get('manajemen-harga/get/(:num)', 'Admin\\Harga::get/$1');
+$routes->get('manajemen-harga/categories', 'Admin\\Harga::getCategories');
 $routes->post('manajemen-harga/store', 'Admin\\Harga::store');
+$routes->post('manajemen-harga/store-category', 'Admin\\Harga::storeCategory');
+$routes->get('manajemen-harga/get-category/(:num)', 'Admin\\Harga::getCategory/$1');
+$routes->post('manajemen-harga/update-category/(:num)', 'Admin\\Harga::updateCategory/$1');
+$routes->post('manajemen-harga/delete-category/(:num)', 'Admin\\Harga::deleteCategory/$1');
 $routes->post('manajemen-harga/update/(:num)', 'Admin\\Harga::update/$1');
 $routes->post('manajemen-harga/toggle-status/(:num)', 'Admin\\Harga::toggleStatus/$1');
 $routes->post('manajemen-harga/delete/(:num)', 'Admin\\Harga::delete/$1');

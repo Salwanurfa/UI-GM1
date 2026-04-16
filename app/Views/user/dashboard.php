@@ -314,7 +314,7 @@ helper('feature');
         <div class="card">
             <div class="card-header">
                 <i class="fas fa-skull-crossbones"></i>
-                <h3>Daftar Limbah B3</h3>
+                <h3>List Data Limbah B3</h3>
                 
                 <!-- Quick Actions -->
                 <div class="quick-actions">
@@ -334,7 +334,7 @@ helper('feature');
                             <tr>
                                 <th>Tanggal</th>
                                 <th>Nama Limbah</th>
-                                <th>Lokasi</th>
+                                <th>Kode</th>
                                 <th>Timbulan</th>
                                 <th>Status</th>
                             </tr>
@@ -344,7 +344,7 @@ helper('feature');
                             <tr>
                                 <td><?= date('d/m/Y', strtotime($limbah['tanggal_input'])) ?></td>
                                 <td><?= esc($limbah['nama_limbah']) ?></td>
-                                <td><?= esc($limbah['lokasi'] ?? '-') ?></td>
+                                <td><span class="badge bg-light text-dark"><?= esc($limbah['kode_limbah'] ?? '-') ?></span></td>
                                 <td><?= number_format($limbah['timbulan'], 2) ?> <?= esc($limbah['satuan']) ?></td>
                                 <td>
                                     <?php

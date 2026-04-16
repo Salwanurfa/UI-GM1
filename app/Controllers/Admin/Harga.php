@@ -64,6 +64,10 @@ class Harga extends BaseController
             $hargaList = $hargaModel->orderBy('status_aktif', 'DESC')->orderBy('jenis_sampah', 'ASC')->paginate($perPage);
             $pager = $hargaModel->pager;
             
+            // Get categories for dropdown
+            $categoryModel = new \App\Models\WasteCategoryModel();
+            $categories = $categoryModel->getCategoriesForDropdown();
+            
             log_message('critical', 'HargaController: Sending to view - recentChanges count: ' . count($recentChanges) . " | Request ID: {$requestId}");
             
             $viewData = [
@@ -73,7 +77,7 @@ class Harga extends BaseController
                 'statistics' => $statistics,
                 'recentChanges' => $recentChanges, // Direct from HargaLogModel
                 'recentChangesCount' => count($recentChanges),
-                'categories' => [],
+                'categories' => $categories,
                 'requestId' => $requestId // Add request ID to view
             ];
 
@@ -312,6 +316,437 @@ class Harga extends BaseController
             ]);
         }
     }
+    /**
+     * Store new waste category
+     */
+    public function storeCategory()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
+            }
+
+            // Validate input
+            $kategoriUtama = trim($this->request->getPost('kategori_utama'));
+
+            if (empty($kategoriUtama)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Nama kategori harus diisi'
+                ]);
+            }
+
+            // Check if category already exists
+            $categoryModel = new \App\Models\WasteCategoryModel();
+            if ($categoryModel->categoryExists($kategoriUtama)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Kategori "' . $kategoriUtama . '" sudah ada. Gunakan nama yang berbeda.'
+                ]);
+            }
+
+            // Prepare data
+            $data = [
+                'kategori_utama' => $kategoriUtama,
+                'sub_kategori' => $kategoriUtama, // Default sub kategori sama dengan kategori utama
+                'deskripsi' => 'Kategori ' . $kategoriUtama,
+                'status_aktif' => 1
+            ];
+
+            // Insert category
+            $insertResult = $categoryModel->insert($data);
+
+            if ($insertResult) {
+                $newId = $categoryModel->getInsertID();
+
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Kategori sampah berhasil ditambahkan',
+                    'data' => [
+                        'id' => $newId,
+                        'kategori_utama' => $kategoriUtama
+                    ]
+                ]);
+            }
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Gagal menambahkan kategori sampah'
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Store Category Error: ' . $e->getMessage());
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyimpan kategori: ' . $e->getMessage()
+            ]);
+        }
+    }
+    /**
+     * Update waste category
+     */
+    public function updateCategory($id)
+    {
+        try {
+            if (!$this->validateSession()) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
+            }
+
+            // Validate input
+            $kategoriUtama = trim($this->request->getPost('kategori_utama'));
+
+            if (empty($kategoriUtama)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Nama kategori harus diisi'
+                ]);
+            }
+
+            $categoryModel = new \App\Models\WasteCategoryModel();
+
+            // Check if category exists
+            $category = $categoryModel->find($id);
+            if (!$category) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Kategori tidak ditemukan'
+                ]);
+            }
+
+            // Check if new name already exists (excluding current category)
+            if ($categoryModel->categoryExists($kategoriUtama, $id)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Kategori "' . $kategoriUtama . '" sudah ada. Gunakan nama yang berbeda.'
+                ]);
+            }
+
+            // Update category
+            $updateData = [
+                'kategori_utama' => $kategoriUtama,
+                'sub_kategori' => $kategoriUtama,
+                'deskripsi' => 'Kategori ' . $kategoriUtama
+            ];
+
+            $updateResult = $categoryModel->update($id, $updateData);
+
+            if ($updateResult) {
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Kategori berhasil diperbarui',
+                    'data' => [
+                        'id' => $id,
+                        'kategori_utama' => $kategoriUtama
+                    ]
+                ]);
+            }
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Gagal memperbarui kategori'
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Update Category Error: ' . $e->getMessage());
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memperbarui kategori: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Delete waste category
+     */
+    public function deleteCategory($id)
+    {
+        try {
+            if (!$this->validateSession()) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
+            }
+
+            $categoryModel = new \App\Models\WasteCategoryModel();
+
+            // Check if category exists
+            $category = $categoryModel->find($id);
+            if (!$category) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Kategori tidak ditemukan'
+                ]);
+            }
+
+            // Check if category is being used
+            if ($categoryModel->isUsedInWasteTypesAlternative($id)) {
+                $usageCount = $categoryModel->getUsageCountAlternative($id);
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Kategori "' . $category['kategori_utama'] . '" tidak dapat dihapus karena masih digunakan oleh ' . $usageCount . ' jenis sampah. Hapus atau ubah jenis sampah tersebut terlebih dahulu.'
+                ]);
+            }
+
+            // Delete category
+            $deleteResult = $categoryModel->delete($id);
+
+            if ($deleteResult) {
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Kategori "' . $category['kategori_utama'] . '" berhasil dihapus'
+                ]);
+            }
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Gagal menghapus kategori'
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Delete Category Error: ' . $e->getMessage());
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menghapus kategori: ' . $e->getMessage()
+            ]);
+        }
+    }
+    /**
+     * Seed standard waste categories (for development/setup)
+     */
+    public function seedCategories()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return redirect()->to('/auth/login');
+            }
+
+            $seeder = new \App\Database\Seeds\WasteCategorySeeder();
+            $seeder->run();
+
+            return redirect()->to('/admin-pusat/manajemen-harga')->with('success', 'Kategori standar berhasil ditambahkan');
+
+        } catch (\Exception $e) {
+            log_message('error', 'Seed Categories Error: ' . $e->getMessage());
+
+            return redirect()->to('/admin-pusat/manajemen-harga')->with('error', 'Gagal menambahkan kategori standar: ' . $e->getMessage());
+        }
+    }
+    /**
+     * Fix database collation issues
+     */
+    public function fixCollation()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return redirect()->to('/auth/login');
+            }
+
+            $db = \Config\Database::connect();
+
+            // Run the collation fix queries
+            $queries = [
+                "ALTER TABLE waste_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci",
+                "ALTER TABLE master_harga_sampah CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
+            ];
+
+            $success = true;
+            $messages = [];
+
+            foreach ($queries as $query) {
+                try {
+                    $db->query($query);
+                    $tableName = $this->extractTableName($query);
+                    $messages[] = "Fixed collation for table: {$tableName}";
+                } catch (\Exception $e) {
+                    $success = false;
+                    $tableName = $this->extractTableName($query);
+                    $messages[] = "Error fixing {$tableName}: " . $e->getMessage();
+                    log_message('error', 'Collation Fix Error for ' . $tableName . ': ' . $e->getMessage());
+                }
+            }
+
+            // Also try to fix other related tables
+            $additionalTables = ['waste_management', 'limbah_b3', 'users'];
+            foreach ($additionalTables as $table) {
+                if ($db->tableExists($table)) {
+                    try {
+                        $db->query("ALTER TABLE {$table} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+                        $messages[] = "Fixed collation for table: {$table}";
+                    } catch (\Exception $e) {
+                        $messages[] = "Warning for {$table}: " . $e->getMessage();
+                    }
+                }
+            }
+
+            $message = implode('<br>', $messages);
+
+            if ($success) {
+                return redirect()->to('/admin-pusat/manajemen-harga')->with('success', 'Collation berhasil diperbaiki:<br>' . $message);
+            } else {
+                return redirect()->to('/admin-pusat/manajemen-harga')->with('error', 'Beberapa tabel gagal diperbaiki:<br>' . $message);
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'Fix Collation Error: ' . $e->getMessage());
+
+            return redirect()->to('/admin-pusat/manajemen-harga')->with('error', 'Gagal memperbaiki collation: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract table name from ALTER TABLE query
+     */
+    private function extractTableName($query)
+    {
+        if (preg_match('/ALTER TABLE\s+(\w+)/', $query, $matches)) {
+            return $matches[1];
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Debug collation issues
+     */
+    public function debugCollation()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return redirect()->to('/auth/login');
+            }
+
+            $db = \Config\Database::connect();
+            
+            // Check current collations
+            $tables = ['waste_categories', 'master_harga_sampah', 'waste_management', 'users'];
+            $collationInfo = [];
+            
+            foreach ($tables as $table) {
+                if ($db->tableExists($table)) {
+                    try {
+                        $query = $db->query("SHOW TABLE STATUS LIKE '{$table}'");
+                        $result = $query->getRow();
+                        $collationInfo[$table] = [
+                            'collation' => $result->Collation ?? 'Unknown',
+                            'exists' => true
+                        ];
+                        
+                    } catch (\Exception $e) {
+                        $collationInfo[$table] = [
+                            'error' => $e->getMessage(),
+                            'exists' => false
+                        ];
+                    }
+                } else {
+                    $collationInfo[$table] = [
+                        'exists' => false,
+                        'message' => 'Table does not exist'
+                    ];
+                }
+            }
+            
+            // Test the problematic query
+            $testResults = [];
+            try {
+                $categoryModel = new \App\Models\WasteCategoryModel();
+                $categories = $categoryModel->findAll();
+                
+                foreach ($categories as $category) {
+                    try {
+                        $isUsed = $categoryModel->isUsedInWasteTypesAlternative($category['id']);
+                        $count = $categoryModel->getUsageCountAlternative($category['id']);
+                        
+                        $testResults[] = [
+                            'category' => $category['kategori_utama'],
+                            'is_used' => $isUsed,
+                            'count' => $count,
+                            'status' => 'OK'
+                        ];
+                    } catch (\Exception $e) {
+                        $testResults[] = [
+                            'category' => $category['kategori_utama'],
+                            'error' => $e->getMessage(),
+                            'status' => 'ERROR'
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                $testResults = ['error' => $e->getMessage()];
+            }
+            
+            // Return debug information
+            return $this->response->setJSON([
+                'collation_info' => $collationInfo,
+                'test_results' => $testResults,
+                'timestamp' => date('Y-m-d H:i:s')
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Debug Collation Error: ' . $e->getMessage());
+            
+            return $this->response->setJSON([
+                'error' => $e->getMessage(),
+                'timestamp' => date('Y-m-d H:i:s')
+            ]);
+        }
+    }
+
+    /**
+     * Get category data for editing
+     */
+    public function getCategory($id)
+    {
+        try {
+            if (!$this->validateSession()) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
+            }
+
+            $categoryModel = new \App\Models\WasteCategoryModel();
+            $category = $categoryModel->find($id);
+
+            if ($category) {
+                return $this->response->setJSON([
+                    'success' => true,
+                    'data' => $category
+                ]);
+            }
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Kategori tidak ditemukan'
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Get Category Error: ' . $e->getMessage());
+
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data kategori'
+            ]);
+        }
+    }
+    /**
+     * Get categories as JSON for AJAX requests
+     */
+    public function getCategories()
+    {
+        try {
+            if (!$this->validateSession()) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
+            }
+
+            $categoryModel = new \App\Models\WasteCategoryModel();
+            $categories = $categoryModel->findAll();
+
+            return $this->response->setJSON($categories);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Get Categories Error: ' . $e->getMessage());
+
+            return $this->response->setJSON([]);
+        }
+    }
+
 
     public function update($id)
     {

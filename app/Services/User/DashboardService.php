@@ -219,35 +219,108 @@ class DashboardService
         try {
             $db = \Config\Database::connect();
             
-            // Get total berat
-            $totalBeratQuery = $db->table('waste_management')
+            // ===== WASTE MANAGEMENT DATA =====
+            $waste_disetujui = $db->table('waste_management')
+                ->where('unit_id', $unitId)
+                ->where('status', 'disetujui')
+                ->countAllResults();
+            
+            $waste_ditolak = $db->table('waste_management')
+                ->where('unit_id', $unitId)
+                ->where('status', 'ditolak')
+                ->countAllResults();
+            
+            $waste_menunggu = $db->table('waste_management')
+                ->where('unit_id', $unitId)
+                ->where('status', 'dikirim')
+                ->countAllResults();
+            
+            $waste_draft = $db->table('waste_management')
+                ->where('unit_id', $unitId)
+                ->where('status', 'draft')
+                ->countAllResults();
+            
+            $waste_berat = $db->table('waste_management')
                 ->selectSum('berat_kg')
                 ->where('unit_id', $unitId)
                 ->get()
-                ->getRow();
+                ->getRow()
+                ->berat_kg ?? 0;
             
-            return [
-                'disetujui' => $db->table('waste_management')
-                    ->where('unit_id', $unitId)
-                    ->where('status', 'disetujui')
-                    ->countAllResults(),
-                'ditolak' => $db->table('waste_management')
-                    ->where('unit_id', $unitId)
-                    ->where('status', 'ditolak')
-                    ->countAllResults(),
-                'menunggu_review' => $db->table('waste_management')
-                    ->where('unit_id', $unitId)
-                    ->where('status', 'dikirim')
-                    ->countAllResults(),
-                'draft' => $db->table('waste_management')
-                    ->where('unit_id', $unitId)
+            // ===== LIMBAH B3 DATA (untuk user di unit ini) =====
+            // Get user IDs yang memiliki unit_id ini (join dengan users table)
+            $userQuery = $db->query(
+                "SELECT id FROM users WHERE unit_id = ?",
+                [$unitId]
+            );
+            $userIds = array_column($userQuery->getResultArray(), 'id');
+            
+            $limbah_disetujui = 0;
+            $limbah_ditolak = 0;
+            $limbah_menunggu = 0;
+            $limbah_draft = 0;
+            $limbah_timbulan = 0;
+            
+            if (!empty($userIds)) {
+                // Data limbah B3 yang disetujui (disetujui_tps atau disetujui_admin)
+                $limbah_disetujui = $db->table('limbah_b3')
+                    ->whereIn('id_user', $userIds)
+                    ->whereIn('status', ['disetujui_tps', 'disetujui_admin'])
+                    ->countAllResults();
+                
+                // Data limbah B3 yang ditolak
+                $limbah_ditolak = $db->table('limbah_b3')
+                    ->whereIn('id_user', $userIds)
+                    ->where('status', 'ditolak_tps')
+                    ->countAllResults();
+                
+                // Data limbah B3 yang menunggu review (dikirim_ke_tps)
+                $limbah_menunggu = $db->table('limbah_b3')
+                    ->whereIn('id_user', $userIds)
+                    ->where('status', 'dikirim_ke_tps')
+                    ->countAllResults();
+                
+                // Data limbah B3 draft
+                $limbah_draft = $db->table('limbah_b3')
+                    ->whereIn('id_user', $userIds)
                     ->where('status', 'draft')
-                    ->countAllResults(),
-                'total_berat' => $totalBeratQuery->berat_kg ?? 0
+                    ->countAllResults();
+                
+                // Total timbulan limbah B3
+                $limbahResult = $db->table('limbah_b3')
+                    ->selectSum('timbulan')
+                    ->whereIn('id_user', $userIds)
+                    ->get()
+                    ->getRow();
+                $limbah_timbulan = $limbahResult->timbulan ?? 0;
+            }
+            
+            // ===== GABUNGKAN HASIL =====
+            return [
+                'disetujui' => $waste_disetujui + $limbah_disetujui,
+                'ditolak' => $waste_ditolak + $limbah_ditolak,
+                'menunggu_review' => $waste_menunggu + $limbah_menunggu,
+                'draft' => $waste_draft + $limbah_draft,
+                'total_berat' => round($waste_berat + $limbah_timbulan, 3),
+                // Custom fields untuk dashboard detail
+                'waste_disetujui' => $waste_disetujui,
+                'waste_draft' => $waste_draft,
+                'limbah_disetujui' => $limbah_disetujui,
+                'limbah_draft' => $limbah_draft
             ];
         } catch (\Exception $e) {
             log_message('error', 'Error getting waste overall stats: ' . $e->getMessage());
-            return ['disetujui' => 0, 'ditolak' => 0, 'menunggu_review' => 0, 'draft' => 0, 'total_berat' => 0];
+            return [
+                'disetujui' => 0,
+                'ditolak' => 0,
+                'menunggu_review' => 0,
+                'draft' => 0,
+                'total_berat' => 0,
+                'waste_disetujui' => 0,
+                'waste_draft' => 0,
+                'limbah_disetujui' => 0,
+                'limbah_draft' => 0
+            ];
         }
     }
     
@@ -429,12 +502,13 @@ class DashboardService
     /**
      * Ambil daftar Limbah B3 milik user untuk dashboard
      * Limit ke 10 records terbaru
+     * Include kode_limbah dari master_limbah_b3
      */
     private function getLimbahB3List(int $userId): array
     {
         try {
             return $this->limbahB3Model
-                ->select('limbah_b3.*, master_limbah_b3.nama_limbah')
+                ->select('limbah_b3.*, master_limbah_b3.nama_limbah, master_limbah_b3.kode_limbah')
                 ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
                 ->where('limbah_b3.id_user', $userId)
                 ->orderBy('limbah_b3.tanggal_input', 'DESC')

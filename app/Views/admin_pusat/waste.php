@@ -212,8 +212,19 @@ function getWasteIcon($jenis) {
                                                 onclick="rejectWaste(<?= $item['id'] ?>)">
                                             <i class="fas fa-times"></i>
                                         </button>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Tombol Lihat Bukti Foto -->
+                                        <?php if (!empty($item['bukti_foto'])): ?>
+                                        <button type="button" class="btn btn-sm btn-info" 
+                                                onclick="lihatBuktiFoto('<?= base_url('uploads/waste/' . $item['bukti_foto']) ?>', '<?= htmlspecialchars($item['jenis_sampah']) ?>')"
+                                                title="Lihat Bukti Foto">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
                                         <?php else: ?>
-                                        <span class="text-muted">-</span>
+                                        <button type="button" class="btn btn-sm btn-secondary" disabled title="Tidak ada foto">
+                                            <i class="fas fa-image"></i>
+                                        </button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -279,12 +290,44 @@ function getWasteIcon($jenis) {
                 </div>
             </div>
         </div>
+
+        <!-- Modal Lihat Bukti Foto -->
+        <div class="modal fade" id="fotoModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-image me-2"></i>Bukti Foto - <span id="fotoJenisSampah"></span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <img id="fotoPreview" src="" alt="Bukti Foto" class="img-fluid rounded" style="max-height: 500px;">
+                        <div class="mt-3">
+                            <a id="fotoDownload" href="" target="_blank" class="btn btn-primary btn-sm">
+                                <i class="fas fa-download me-1"></i>Download Foto
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let selectedWasteIds = [];
         let currentRejectId = null;
+
+        // Function untuk lihat bukti foto
+        function lihatBuktiFoto(fotoUrl, jenisSampah) {
+            document.getElementById('fotoPreview').src = fotoUrl;
+            document.getElementById('fotoDownload').href = fotoUrl;
+            document.getElementById('fotoJenisSampah').textContent = jenisSampah;
+            
+            const modal = new bootstrap.Modal(document.getElementById('fotoModal'));
+            modal.show();
+        }
 
         // Select all functionality
         document.getElementById('selectAllWaste').addEventListener('change', function() {
