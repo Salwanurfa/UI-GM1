@@ -51,10 +51,6 @@ $stats = $stats ?? [];
                 <p>Riwayat aktivitas limbah B3 dan sampah dari <?= esc($target_user['nama_lengkap'] ?? 'User') ?></p>
             </div>
             <div class="header-actions">
-                <a href="<?= base_url('/admin-pusat/user-management/export-user-log/' . ($target_user['id'] ?? 0)) ?>" 
-                   class="btn btn-success me-2" title="Backup Semua Data User Ini">
-                    <i class="fas fa-download"></i> Backup Data
-                </a>
                 <a href="<?= base_url('/admin-pusat/user-management') ?>" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left"></i> Kembali
                 </a>

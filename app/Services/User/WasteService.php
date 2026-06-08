@@ -55,80 +55,112 @@ class WasteService
     public function saveWaste(array $data): array
     {
         try {
-            log_message('info', 'User Save Waste - Data received: ' . json_encode($data));
+            log_message('info', '=== SAVE WASTE DEBUG START ===');
+            log_message('info', 'Data received: ' . json_encode($data));
             
             $validation = $this->validateWasteData($data);
             if (!$validation['valid']) {
-                log_message('error', 'User Save Waste - Validation failed: ' . $validation['message']);
+                log_message('error', 'Validation failed: ' . $validation['message']);
                 return ['success' => false, 'message' => $validation['message']];
             }
 
             $user = session()->get('user');
+            log_message('info', 'User from session: ' . json_encode($user));
+            
+            // Validate user session
+            if (!$user || !isset($user['id'])) {
+                log_message('error', 'User tidak ada di session');
+                return ['success' => false, 'message' => 'Session user tidak valid. Silakan login kembali.'];
+            }
+            
+            log_message('info', 'User ID: ' . $user['id'] . ', Unit ID: ' . ($user['unit_id'] ?? 'NULL'));
             
             // Get category info
             $category = $this->hargaModel->find($data['kategori_id']);
+            log_message('info', 'Category found: ' . json_encode($category));
             
             if (!$category) {
+                log_message('error', 'Kategori tidak ditemukan: ' . $data['kategori_id']);
                 return ['success' => false, 'message' => 'Kategori sampah tidak ditemukan'];
             }
             
-            // Determine status based on action
-            $status = 'draft';
-            if (isset($data['status_action']) && $data['status_action'] === 'kirim') {
-                $status = 'dikirim_ke_tps'; // Changed from 'dikirim' to 'dikirim_ke_tps'
-            }
+            // PAKSA STATUS: SELALU DIKIRIM_KE_TPS (TIDAK ADA DRAFT LAGI!)
+            // Status default dan final adalah 'dikirim_ke_tps'
+            $status = 'dikirim_ke_tps';
+            
+            log_message('info', 'Status PAKSA: ' . $status);
             
             // Get satuan from input, default to 'kg' if not provided
             $satuan = $data['satuan'] ?? 'kg';
             
             $wasteData = [
                 'unit_id' => $user['unit_id'],
+                'user_id' => $user['id'],  // CRITICAL: user_id
                 'berat_kg' => $data['berat_kg'],
                 'tanggal' => date('Y-m-d'),
-                'jenis_sampah' => $category['jenis_sampah'],  // Kategori umum (Plastik, Kertas, dll)
-                'nama_sampah' => $category['nama_jenis'],      // Nama detail (Keyboard Bekas, dll)
+                'jenis_sampah' => $category['jenis_sampah'],
+                'nama_sampah' => $category['nama_jenis'],
                 'satuan' => $satuan,
                 'jumlah' => $data['berat_kg'],
                 'gedung' => 'User Unit',
                 'kategori_sampah' => $category['dapat_dijual'] ? 'bisa_dijual' : 'tidak_bisa_dijual',
-                'status' => $status,
-                'user_id' => $user['id']  // Changed from created_by to user_id
+                'status' => 'dikirim_ke_tps'  // PAKSA LANGSUNG DI SINI JUGA!
             ];
+            
+            // Add foto_bukti if provided
+            if (isset($data['foto_bukti'])) {
+                $wasteData['foto_bukti'] = $data['foto_bukti'];
+            }
             
             // Add nilai_rupiah if can be sold
             if ($category['dapat_dijual']) {
                 $wasteData['nilai_rupiah'] = $data['berat_kg'] * $category['harga_per_satuan'];
             }
 
-            log_message('info', 'User Save Waste - Prepared data: ' . json_encode($wasteData));
+            log_message('info', 'Prepared waste data: ' . json_encode($wasteData));
+            log_message('info', 'Attempting to insert into waste_management table...');
 
             $result = $this->wasteModel->insert($wasteData);
             
+            log_message('info', 'Insert result: ' . ($result ? 'SUCCESS (ID: ' . $result . ')' : 'FAILED'));
+            
             if ($result) {
-                log_message('info', 'User Save Waste - Success, ID: ' . $result);
-                $message = $status === 'dikirim_ke_tps' ? 'Data sampah berhasil disimpan dan dikirim ke TPS' : 'Data sampah berhasil disimpan sebagai draft';
-                return ['success' => true, 'message' => $message];
+                log_message('info', 'Data successfully inserted with ID: ' . $result);
+                
+                // VERIFY: Check if data actually exists in database
+                $insertedData = $this->wasteModel->find($result);
+                log_message('info', 'Verification - Data in DB: ' . json_encode($insertedData));
+                
+                $message = $status === 'dikirim_ke_tps' 
+                    ? 'Data sampah berhasil disimpan dan dikirim ke TPS' 
+                    : 'Data sampah berhasil disimpan sebagai draft';
+                return ['success' => true, 'message' => $message, 'id' => $result];
             }
 
             // Get database error if insert failed
             $db = \Config\Database::connect();
             $error = $db->error();
             $lastQuery = $db->getLastQuery();
-            log_message('error', 'User Save Waste - Insert failed. DB Error: ' . json_encode($error));
-            log_message('error', 'User Save Waste - Last Query: ' . $lastQuery);
-            log_message('error', 'User Save Waste - Model errors: ' . json_encode($this->wasteModel->errors()));
+            
+            log_message('error', '=== INSERT FAILED ===');
+            log_message('error', 'DB Error: ' . json_encode($error));
+            log_message('error', 'Last Query: ' . $lastQuery);
+            log_message('error', 'Model errors: ' . json_encode($this->wasteModel->errors()));
             
             // Check if there are validation errors
             $validationErrors = $this->wasteModel->errors();
             if (!empty($validationErrors)) {
+                log_message('error', 'Validation errors from model: ' . json_encode($validationErrors));
                 return ['success' => false, 'message' => 'Validasi gagal: ' . implode(', ', $validationErrors)];
             }
             
             return ['success' => false, 'message' => 'Gagal menyimpan data sampah: ' . ($error['message'] ?? 'Unknown error')];
 
         } catch (\Exception $e) {
-            log_message('error', 'Save User Waste Error: ' . $e->getMessage());
+            log_message('error', '=== SAVE WASTE EXCEPTION ===');
+            log_message('error', 'Exception: ' . $e->getMessage());
             log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            
             return ['success' => false, 'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()];
         }
     }
@@ -437,12 +469,43 @@ class WasteService
     private function getWasteList(int $unitId): array
     {
         try {
-            return $this->wasteModel
+            // PERBAIKAN: Ambil data berdasarkan user_id untuk memastikan data user muncul
+            $user = session()->get('user');
+            
+            // DEBUG: Log informasi user
+            log_message('info', '=== getWasteList DEBUG ===');
+            log_message('info', 'User from session: ' . json_encode($user));
+            log_message('info', 'User ID: ' . ($user['id'] ?? 'NULL'));
+            log_message('info', 'Unit ID param: ' . $unitId);
+            
+            // Query dengan filter user_id DAN unit_id untuk keamanan
+            $result = $this->wasteModel
+                ->where('user_id', $user['id'])
                 ->where('unit_id', $unitId)
                 ->orderBy('created_at', 'DESC')
                 ->findAll();
+            
+            log_message('info', 'Records found with filter (user_id=' . $user['id'] . ', unit_id=' . $unitId . '): ' . count($result));
+            
+            // TEMPORARY: Jika tidak ada hasil, coba query hanya dengan unit_id
+            if (empty($result)) {
+                log_message('warning', 'No records found with user_id filter, trying unit_id only...');
+                $resultUnitOnly = $this->wasteModel
+                    ->where('unit_id', $unitId)
+                    ->orderBy('created_at', 'DESC')
+                    ->findAll();
+                log_message('info', 'Records found with unit_id only: ' . count($resultUnitOnly));
+                
+                if (!empty($resultUnitOnly)) {
+                    log_message('info', 'Sample record (unit_id only): ' . json_encode($resultUnitOnly[0]));
+                }
+            }
+            
+            return $result;
         } catch (\Exception $e) {
             log_message('error', 'Error getting waste list: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            
             return [];
         }
     }

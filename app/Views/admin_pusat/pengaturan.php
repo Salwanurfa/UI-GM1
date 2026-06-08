@@ -229,9 +229,6 @@
             </div>
             <div class="card-body">
                 <div class="quick-actions">
-                    <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="backupDatabase()">
-                        <i class="fas fa-download"></i> Backup Database
-                    </button>
                     <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="exportData()">
                         <i class="fas fa-file-export"></i> Export Data
                     </button>
@@ -521,12 +518,6 @@
 
     function manageUsers() {
         alert('Fitur manajemen pengguna akan segera tersedia');
-    }
-
-    function backupDatabase() {
-        if (confirm('Apakah Anda yakin ingin membuat backup database?')) {
-            alert('Fitur backup database akan segera tersedia');
-        }
     }
 
     function exportData() {

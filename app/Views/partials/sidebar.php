@@ -35,11 +35,12 @@ $menus = [
                 'submenu' => [
                     ['label' => 'Manajemen Data Sampah', 'url' => '/admin-pusat/waste'],
                     ['label' => 'Manajemen Jenis Sampah', 'url' => '/admin-pusat/manajemen-harga'],
-                    ['label' => 'Manajemen Jenis Limbah B3', 'url' => '/admin-pusat/manajemen-limbah-b3'],
+                    ['label' => 'Manajemen Limbah B3', 'url' => '/admin-pusat/manajemen-limbah-b3'],
+                    ['label' => 'Manajemen Limbah Cair', 'url' => '/admin-pusat/master-limbah-cair'],
                     ['label' => 'Laporan Data Sampah', 'url' => '/admin-pusat/laporan-waste'],
                     ['label' => 'Indikator UIGM', 'url' => '/admin-pusat/indikator-uigm'],
                     ['label' => 'Bukti Dukung', 'url' => '/admin-pusat/bukti-dukung'],
-                    ['label' => 'LogBook Kegiatan', 'url' => '/admin-pusat/logbook'],
+                    ['label' => 'Logbook', 'url' => '/admin-pusat/logbook'],
                 ]
             ],
             [
@@ -54,9 +55,9 @@ $menus = [
                 'icon' => 'fa-car', 
                 'label' => 'Transportation', 
                 'submenu' => [
-                    ['label' => 'Data Transportasi', 'url' => '/admin-pusat/transportation'],
-                    ['label' => 'Manajemen Transportasi', 'url' => '/admin-pusat/reference'],
-                    ['label' => 'Laporan', 'url' => '/admin-pusat/transportation/laporan'],
+                    ['label' => 'Manajemen Data', 'url' => '/admin-pusat/transportation/manajemen'],
+                    ['label' => 'Analisis & Skor UIGM', 'url' => '/admin-pusat/transportation/analisis-skor'],
+                    ['label' => 'Laporan Lengkap', 'url' => '/admin-pusat/transportation/laporan-lengkap'],
                 ]
             ],
             [
@@ -82,7 +83,8 @@ $menus = [
             ['icon' => 'fa-tachometer-alt', 'label' => 'Dashboard', 'url' => '/user/dashboard'],
             ['section' => 'WASTE MANAGEMENT'],
             ['icon' => 'fa-trash-alt', 'label' => 'Data Sampah', 'url' => '/user/waste'],
-            ['icon' => 'fa-skull-crossbones', 'label' => 'Limbah B3', 'url' => '/user/limbah-b3'],
+            ['icon' => 'fa-skull-crossbones', 'label' => 'Data Limbah B3', 'url' => '/user/limbah-b3'],
+            ['icon' => 'fa-tint', 'label' => 'Data Limbah Cair', 'url' => '/user/limbah-cair'],
             ['section' => 'AKUN'],
             ['icon' => 'fa-user-circle', 'label' => 'Profil Akun', 'url' => '/user/profile'],
         ]
@@ -104,13 +106,14 @@ $menus = [
     ],
     'security' => [
         'title' => 'Security System',
-        'subtitle' => 'Satpam POLBAN',
-        'color' => '#1e3c72',
-        'color2' => '#2a5298',
+        'subtitle' => 'Petugas Keamanan',
+        'color' => '#4a5568',
+        'color2' => '#2d3748',
         'items' => [
-            ['icon' => 'fa-tachometer-alt', 'label' => 'Dashboard', 'url' => '/security/dashboard'],
-            ['section' => 'TRANSPORTATION'],
-            ['icon' => 'fa-car', 'label' => 'Input Transportasi', 'url' => '/security/transportation'],
+            ['icon' => 'fa-home', 'label' => 'Dashboard', 'url' => '/security/dashboard'],
+            ['section' => 'TRANSPORTASI'],
+            ['icon' => 'fa-car-side', 'label' => 'Input Kendaraan', 'url' => '/security/transportation'],
+            ['icon' => 'fa-clipboard-list', 'label' => 'Log Harian Kendaraan', 'url' => '/security/transportation/log-harian'],
             ['section' => 'AKUN'],
             ['icon' => 'fa-user-circle', 'label' => 'Profil Akun', 'url' => '/security/profile'],
         ]

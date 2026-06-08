@@ -31,9 +31,18 @@ class CreateBuktiDukungTable extends Migration
                 'null'       => false,
             ],
             'ukuran_file' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'null'       => false,
+                'type'       => 'VARCHAR',
+                'constraint' => 50,
+                'null'       => true,
+            ],
+            'tipe_file' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 50,
+                'null'       => true,
+            ],
+            'uploaded_at' => [
+                'type' => 'DATETIME',
+                'null' => true,
             ],
             'created_at' => [
                 'type' => 'DATETIME',

@@ -27,12 +27,14 @@ $routes->group('admin-pusat', ['filter' => 'role:admin_pusat,super_admin'], func
     require APPPATH . 'Config/Routes/Admin/feature_toggle.php';
     require APPPATH . 'Config/Routes/Admin/user_management.php';
     require APPPATH . 'Config/Routes/Admin/unit_management.php';
-    require APPPATH . 'Config/Routes/Admin/waste.php';
+    require APPPATH . 'Config/Routes/Admin/waste.php';  
     require APPPATH . 'Config/Routes/Admin/waste_standardized.php';
     require APPPATH . 'Config/Routes/Admin/review.php';
     require APPPATH . 'Config/Routes/Admin/laporan.php';
     require APPPATH . 'Config/Routes/Admin/laporan_waste.php';
     require APPPATH . 'Config/Routes/Admin/manajemen_limbah_b3.php';
+    // require APPPATH . 'Config/Routes/Admin/manajemen_limbah_cair.php'; // DISABLED - Modul tidak digunakan
+    require APPPATH . 'Config/Routes/Admin/master_limbah_cair.php';
     require APPPATH . 'Config/Routes/Admin/indikator_uigm.php';
     require APPPATH . 'Config/Routes/Admin/profil.php';
     require APPPATH . 'Config/Routes/Admin/pengaturan.php';
@@ -42,9 +44,15 @@ $routes->group('admin-pusat', ['filter' => 'role:admin_pusat,super_admin'], func
     require APPPATH . 'Config/Routes/Admin/bukti_dukung.php';
     require APPPATH . 'Config/Routes/Admin/infrastructure.php';
     
-    // LOGBOOK ROUTES - BERSIH DAN BARU
+    
+    // LOGBOOK ROUTES - VIEW ONLY (Monitoring Data User)
     $routes->get('logbook', 'Admin\\LogBook::index');
-    $routes->post('logbook/save', 'Admin\\LogBook::save');
+    $routes->get('logbook/get_detail/(:any)/(:num)', 'Admin\\LogBook::getDetail/$1/$2');
+    $routes->get('logbook/export-excel/(:any)', 'Admin\\LogBook::exportExcel/$1');
+    $routes->get('logbook/export-pdf/(:any)', 'Admin\\LogBook::exportPdf/$1');
+    $routes->get('logbook/print-formal/(:any)', 'Admin\\LogBook::printFormal/$1');
+    $routes->get('logbook/backup', 'Admin\\LogBook::backup');
+    $routes->post('logbook/bulk-delete', 'Admin\\LogBook::bulkDelete');
 });
 
 // ================================================
@@ -64,6 +72,7 @@ $routes->group('user', ['filter' => 'role:user'], function ($routes) {
     $routes->delete('waste/delete/(:num)', 'User\\Waste::delete/$1'); // Keep DELETE for backward compatibility
     $routes->get('waste/export', 'User\\Waste::export');
     $routes->get('waste/export-pdf', 'User\\Waste::exportPdf');
+    $routes->get('waste/export-excel', 'User\\Waste::exportExcel');
 
     // Limbah B3
     $routes->get('limbah-b3', 'User\\LimbahB3::index');
@@ -74,6 +83,16 @@ $routes->group('user', ['filter' => 'role:user'], function ($routes) {
     $routes->get('limbah-b3/master/(:num)', 'User\\LimbahB3::master/$1');
         $routes->get('limbah-b3/export-excel', 'User\\LimbahB3::exportExcel');
         $routes->get('limbah-b3/export-pdf', 'User\\LimbahB3::exportPdf');
+    
+    // Limbah Cair
+    $routes->get('limbah-cair', 'User\\LimbahCair::index');
+    $routes->get('limbah-cair-test', 'User\\LimbahCair::test'); // TEST ROUTE
+    $routes->get('limbah-cair/get/(:num)', 'User\\LimbahCair::get/$1');
+    $routes->post('limbah-cair/save', 'User\\LimbahCair::save');
+    $routes->post('limbah-cair/update', 'User\\LimbahCair::update');
+    $routes->post('limbah-cair/delete/(:num)', 'User\\LimbahCair::delete/$1');
+    $routes->get('limbah-cair/export-excel', 'User\\LimbahCair::exportExcel');
+    $routes->get('limbah-cair/export-pdf', 'User\\LimbahCair::exportPdf');
     
     // Profile
     $routes->get('profile', 'User\\Profile::index');
@@ -119,7 +138,6 @@ $routes->group('pengelola-tps', ['filter' => 'role:pengelola_tps'], function ($r
     $routes->post('profile/update', 'TPS\\Profile::update');
     $routes->post('profile/change-password', 'TPS\\Profile::changePassword');
 });
-
 // ================================================
 // SECURITY ROUTES (Role: security)
 // ================================================
@@ -127,14 +145,37 @@ $routes->group('security', ['filter' => 'role:security'], function ($routes) {
     // Dashboard
     $routes->get('dashboard', 'Security\\Dashboard::index');
     $routes->get('/', 'Security\\Dashboard::index');
-    $routes->post('dashboard/delete/(:num)', 'Security\\Dashboard::deleteEntry/$1');
+    $routes->get('dashboard/delete/(:num)', 'Security\\Transportation::delete/$1');
+    $routes->post('dashboard/delete/(:num)', 'Security\\Transportation::delete/$1');
     $routes->get('dashboard/export-pdf', 'Security\\Dashboard::exportPdf');
     $routes->get('dashboard/export-excel', 'Security\\Dashboard::exportExcel');
     
     // Transportation Management
     $routes->get('transportation', 'Security\\Transportation::index');
     $routes->post('transportation/save', 'Security\\Transportation::save');
+    $routes->get('transportation/delete/(:num)', 'Security\\Transportation::delete/$1');
     $routes->post('transportation/delete/(:num)', 'Security\\Transportation::delete/$1');
+    $routes->post('transportation/bulk-delete', 'Security\\Transportation::bulkDelete');
+    $routes->get('transportation/export-excel', 'Security\\Transportation::exportExcel');
+    $routes->get('transportation/export-pdf', 'Security\\Transportation::exportPdf');
+    
+    // Log Harian Kendaraan (Moved from Admin)
+    $routes->get('transportation/log-harian', 'Security\\Transportation::logHarian');
+    $routes->post('transportation/simpan-log-harian', 'Security\\Transportation::simpanLogHarian');
+    $routes->get('transportation/get-log-harian/(:num)', 'Security\\Transportation::getLogHarian/$1');
+    $routes->get('transportation/hapus-log-harian/(:num)', 'Security\\Transportation::hapusLogHarian/$1');
+    $routes->post('transportation/bulk-delete-log-harian', 'Security\\Transportation::bulkDeleteLogHarian');
+    $routes->get('transportation/export-log-harian-excel', 'Security\\Transportation::exportLogHarianExcel');
+    $routes->get('transportation/export-log-harian-pdf', 'Security\\Transportation::exportLogHarianPdf');
+    $routes->post('transportation/backup-logs', 'Security\\Transportation::backupLogs');
+    $routes->get('transportation/backup-preview', 'Security\\Transportation::backupPreview');
+    $routes->post('transportation/backup-and-download', 'Security\\Transportation::backupAndDownload');
+    $routes->get('transportation/download-backup-excel', 'Security\\Transportation::downloadBackupExcel');
+    
+    // Transportation History
+    $routes->get('history', 'Security\\Transportation::history');
+    $routes->get('history/delete/(:num)', 'Security\\Transportation::delete/$1');
+    $routes->post('history/delete/(:num)', 'Security\\Transportation::delete/$1');
     
     // Profile
     $routes->get('profile', 'Security\\Profile::index');
@@ -153,9 +194,9 @@ $routes->group('api', ['filter' => 'auth'], function ($routes) {
 // ================================================
 // FILE SERVING ROUTES (Public access to uploaded files)
 // ================================================
-$routes->get('uploads/uigm_evidence/(:any)', function($filename) {
+$routes->get('uploads/uigm_evidence/(:any)', function(string $filename) {    
     $filePath = WRITEPATH . 'uploads/uigm_evidence/' . $filename;
-    
+
     if (!file_exists($filePath)) {
         throw new \CodeIgniter\Exceptions\PageNotFoundException('File not found');
     }
@@ -196,3 +237,9 @@ $routes->set404Override(function() {
         'login_url' => null
     ]);
 });
+
+// Debug routes (only in development)
+if (ENVIRONMENT === 'development') {
+    $routes->get('debug/table-check', 'Debug\TableCheck::checkMasterB3');
+}
+

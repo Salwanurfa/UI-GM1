@@ -110,7 +110,8 @@ class Filters extends BaseFilters
     public array $filters = [
         'csrf' => [
             'before' => [
-                'user/*'
+                'user/*',
+                'pengelola-tps/*'
                 // CSRF disabled for admin-pusat during development
                 // 'admin-pusat/*'
             ],

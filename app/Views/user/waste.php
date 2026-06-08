@@ -308,7 +308,7 @@ $stats = $stats ?? [];
                     <li class="nav-item">
                         <a class="nav-link active" data-bs-toggle="tab" href="#pending-tab">
                             <i class="fas fa-clock text-warning"></i> Draft & Dikirim 
-                            <span class="badge bg-warning"><?= count(array_filter($waste_list, fn($w) => in_array($w['status'] ?? 'draft', ['draft', 'dikirim', 'review', 'perlu_revisi']))) ?></span>
+                            <span class="badge bg-warning"><?= count(array_filter($waste_list, fn($w) => in_array($w['status'] ?? 'draft', ['draft', 'dikirim_ke_tps']))) ?></span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -342,7 +342,7 @@ $stats = $stats ?? [];
                     <!-- Tab 1: Draft & Dikirim -->
                     <div class="tab-pane fade show active" id="pending-tab">
                         <?php 
-                        $pendingData = array_filter($waste_list, fn($w) => in_array($w['status'] ?? 'draft', ['draft', 'dikirim', 'review', 'perlu_revisi']));
+                        $pendingData = array_filter($waste_list, fn($w) => in_array($w['status'] ?? 'draft', ['draft', 'dikirim_ke_tps']));
                         ?>
                         <?php if (!empty($pendingData)): ?>
                             <div class="table-responsive">
@@ -379,24 +379,28 @@ $stats = $stats ?? [];
                                             <td>
                                                 <?php
                                                 $statusClass = match($waste['status'] ?? 'draft') {
-                                                    'dikirim' => 'info',
-                                                    'review' => 'warning',
-                                                    'perlu_revisi' => 'danger',
                                                     'draft' => 'secondary',
+                                                    'dikirim_ke_tps' => 'info',
+                                                    'disetujui_tps' => 'success',
+                                                    'ditolak_tps' => 'danger',
+                                                    'disetujui_admin' => 'success',
+                                                    'ditolak_admin' => 'danger',
                                                     default => 'secondary'
                                                 };
                                                 $statusLabel = match($waste['status'] ?? 'draft') {
-                                                    'dikirim' => 'Dikirim',
-                                                    'review' => 'Review',
-                                                    'perlu_revisi' => 'Perlu Revisi',
                                                     'draft' => 'Draft',
-                                                    default => 'Draft'
+                                                    'dikirim_ke_tps' => 'Dikirim ke TPS',
+                                                    'disetujui_tps' => 'Disetujui TPS',
+                                                    'ditolak_tps' => 'Ditolak TPS',
+                                                    'disetujui_admin' => 'Disetujui Admin',
+                                                    'ditolak_admin' => 'Ditolak Admin',
+                                                    default => ucfirst($waste['status'] ?? 'draft')
                                                 };
                                                 ?>
                                                 <span class="badge bg-<?= $statusClass ?>"><?= $statusLabel ?></span>
                                             </td>
                                             <td style="white-space: nowrap;">
-                                                <?php if (in_array($waste['status'] ?? 'draft', ['draft', 'perlu_revisi'])): ?>
+                                                <?php if (in_array($waste['status'] ?? 'draft', ['draft', 'perlu_revisi', 'ditolak_tps'])): ?>
                                                 <div class="btn-group btn-group-sm">
                                                     <button type="button" class="btn btn-outline-primary" onclick="editWaste(<?= $waste['id'] ?>)">
                                                         <i class="fas fa-edit"></i>
@@ -707,7 +711,7 @@ $stats = $stats ?? [];
                     <h5 class="modal-title">Tambah Data Sampah</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="addWasteForm" enctype="multipart/form-data">
+                <form id="addWasteForm" action="<?= base_url('user/waste/save') ?>" method="POST" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <div class="modal-body">
                         <div class="mb-3">
@@ -1011,22 +1015,34 @@ $stats = $stats ?? [];
         // Preview foto
         document.getElementById('foto').addEventListener('change', function(e) {
             const file = e.target.files[0];
+            const fotoLabel = this.parentElement.querySelector('.form-label');
+            
             if (file) {
+                console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+                
                 // Validasi ukuran file (max 2MB)
                 if (file.size > 2 * 1024 * 1024) {
-                    toast.error('Ukuran file terlalu besar! Maksimal 2MB');
+                    toast.error('Ukuran file terlalu besar! Maksimal 2MB. Ukuran file Anda: ' + (file.size / 1024 / 1024).toFixed(2) + 'MB');
                     this.value = '';
                     document.getElementById('foto_preview').style.display = 'none';
+                    if (fotoLabel) fotoLabel.style.color = '';
                     return;
                 }
                 
                 // Validasi tipe file
                 const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
                 if (!allowedTypes.includes(file.type)) {
-                    toast.error('Format file tidak didukung! Gunakan JPG, PNG, atau JPEG');
+                    toast.error('Format file tidak didukung! Gunakan JPG, PNG, atau JPEG. Format Anda: ' + file.type);
                     this.value = '';
                     document.getElementById('foto_preview').style.display = 'none';
+                    if (fotoLabel) fotoLabel.style.color = '';
                     return;
+                }
+                
+                // Update label to show file is selected
+                if (fotoLabel) {
+                    fotoLabel.style.color = '#28a745';
+                    fotoLabel.innerHTML = 'Bukti Foto * <i class="fas fa-check-circle text-success"></i> <small class="text-success">(' + file.name + ')</small>';
                 }
                 
                 // Show preview
@@ -1034,10 +1050,16 @@ $stats = $stats ?? [];
                 reader.onload = function(e) {
                     document.getElementById('foto_preview_img').src = e.target.result;
                     document.getElementById('foto_preview').style.display = 'block';
+                    toast.success('✓ Foto berhasil dipilih: ' + file.name);
                 };
                 reader.readAsDataURL(file);
             } else {
+                console.log('No file selected');
                 document.getElementById('foto_preview').style.display = 'none';
+                if (fotoLabel) {
+                    fotoLabel.style.color = '';
+                    fotoLabel.innerHTML = 'Bukti Foto * <i class="fas fa-info-circle text-muted" data-tooltip="Upload foto bukti sampah. Format: JPG, PNG, JPEG. Maksimal 2MB. WAJIB diisi!" data-tooltip-position="top"></i>';
+                }
             }
         });
 
@@ -1076,12 +1098,11 @@ $stats = $stats ?? [];
 
         // Submit add waste form
         let isSubmitting = false; // Prevent double submit
-        document.getElementById('addWasteForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
+        document.getElementById('addWasteForm').addEventListener('submit', function(e) {
             // Prevent double submit
             if (isSubmitting) {
                 console.log('Form already submitting, ignoring...');
+                e.preventDefault();
                 return;
             }
             
@@ -1089,61 +1110,104 @@ $stats = $stats ?? [];
             const kategoriId = document.getElementById('kategori_id').value;
             const jumlah = document.getElementById('jumlah').value;
             const satuan = document.getElementById('satuan').value;
-            const foto = document.getElementById('foto').files[0];
+            const fotoInput = document.getElementById('foto');
+            const foto = fotoInput.files[0];
             
-            if (!kategoriId || !jumlah || !satuan || !foto) {
-                toast.error('⚠️ Penginputan data tidak lengkap! Semua field wajib diisi termasuk foto bukti.');
+            console.log('Form validation:', {
+                kategoriId: kategoriId,
+                jumlah: jumlah,
+                satuan: satuan,
+                foto: foto ? foto.name : 'No file selected',
+                fotoSize: foto ? foto.size : 0
+            });
+            
+            if (!kategoriId) {
+                e.preventDefault();
+                toast.error('⚠️ Kategori sampah wajib dipilih!');
                 return;
             }
             
+            if (!jumlah) {
+                e.preventDefault();
+                toast.error('⚠️ Jumlah/berat sampah wajib diisi!');
+                return;
+            }
+            
+            if (!satuan) {
+                e.preventDefault();
+                toast.error('⚠️ Satuan wajib dipilih!');
+                return;
+            }
+            
+            if (!foto) {
+                e.preventDefault();
+                toast.error('⚠️ Foto bukti WAJIB diupload! Silakan pilih file foto terlebih dahulu.');
+                console.error('No file selected in input');
+                return;
+            }
+            
+            // Validasi ukuran file (2MB = 2097152 bytes)
+            if (foto.size > 2097152) {
+                e.preventDefault();
+                const sizeMB = (foto.size / 1048576).toFixed(2);
+                toast.error('⚠️ Ukuran foto terlalu besar (' + sizeMB + 'MB). Maksimal 2MB!');
+                return;
+            }
+            
+            // Validasi tipe file
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(foto.type)) {
+                e.preventDefault();
+                toast.error('⚠️ Format foto tidak valid! Gunakan JPG, JPEG, atau PNG. Format Anda: ' + foto.type);
+                return;
+            }
+            
+            console.log('✓ All validations passed, submitting form...');
+            
             isSubmitting = true; // Set flag
             
-            const formData = new FormData(this);
-            
             // Konversi jumlah ke kg untuk disimpan
-            const jumlahValue = parseFloat(formData.get('jumlah')) || 0;
-            const satuanValue = formData.get('satuan');
+            const jumlahValue = parseFloat(jumlah) || 0;
+            const satuanValue = satuan;
             const beratKg = konversiKeKg(jumlahValue, satuanValue);
             
-            // Tambahkan berat_kg ke form data
-            formData.append('berat_kg', beratKg);
+            // Tambahkan berat_kg ke hidden input
+            let beratKgInput = document.getElementById('berat_kg_hidden');
+            if (!beratKgInput) {
+                beratKgInput = document.createElement('input');
+                beratKgInput.type = 'hidden';
+                beratKgInput.id = 'berat_kg_hidden';
+                beratKgInput.name = 'berat_kg';
+                this.appendChild(beratKgInput);
+            }
+            beratKgInput.value = beratKg;
             
-            // Get action from clicked button
+            // PERBAIKAN: Ambil action dari tombol yang diklik
             const action = e.submitter ? e.submitter.value : 'draft';
-            formData.append('status_action', action);
+            let actionInput = document.getElementById('action_hidden');
+            if (!actionInput) {
+                actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.id = 'action_hidden';
+                actionInput.name = 'action';  // PERBAIKAN: nama harus 'action' bukan 'status_action'
+                this.appendChild(actionInput);
+            }
+            actionInput.value = action;
+            
+            console.log('Action yang akan dikirim:', action);
             
             // Show loading
             const submitBtn = e.submitter;
-            loading.buttonLoading(submitBtn, true);
+            if (submitBtn) {
+                loading.buttonLoading(submitBtn, true);
+            }
             
             // Disable all submit buttons
             const allSubmitBtns = this.querySelectorAll('button[type="submit"]');
             allSubmitBtns.forEach(btn => btn.disabled = true);
             
-            try {
-                const response = await fetch('<?= base_url('/user/waste/save') ?>', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    toast.success(data.message || 'Data sampah berhasil disimpan!');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    toast.error(data.message || 'Gagal menyimpan data sampah');
-                    loading.buttonLoading(submitBtn, false);
-                    allSubmitBtns.forEach(btn => btn.disabled = false);
-                    isSubmitting = false; // Reset flag
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                toast.error('Terjadi kesalahan saat menyimpan data');
-                loading.buttonLoading(submitBtn, false);
-                allSubmitBtns.forEach(btn => btn.disabled = false);
-                isSubmitting = false; // Reset flag
-            }
+            // Form akan submit secara normal (tidak pakai AJAX)
+            // Controller akan redirect dengan flash message
         });
 
         // Submit edit waste form

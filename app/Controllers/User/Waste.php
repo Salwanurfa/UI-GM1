@@ -3,15 +3,12 @@
 namespace App\Controllers\User;
 
 use App\Controllers\BaseController;
-use App\Services\User\WasteService;
 
 class Waste extends BaseController
 {
-    protected $wasteService;
-
     public function __construct()
     {
-        $this->wasteService = new WasteService();
+        // Tidak perlu service lagi - langsung pakai model seperti Limbah Cair
     }
 
     public function index()
@@ -21,7 +18,19 @@ class Waste extends BaseController
                 return redirect()->to('/auth/login');
             }
 
-            $data = $this->wasteService->getWasteData();
+            $session = session();
+            $user = $session->get('user');
+
+            // AMBIL DATA USER INI SAJA - sama seperti Limbah Cair
+            $wasteModel = new \App\Models\WasteModel();
+            $waste_list = $wasteModel
+                ->where('user_id', $user['id'])
+                ->orderBy('id', 'DESC')
+                ->findAll();
+
+            // Get user's unit
+            $unitModel = new \App\Models\UnitModel();
+            $unit = $unitModel->find($user['unit_id']) ?? ['nama_unit' => 'Unit'];
             
             $hargaModel = new \App\Models\HargaSampahModel();
             
@@ -37,26 +46,56 @@ class Waste extends BaseController
                                        ->orderBy('jenis_sampah', 'ASC')
                                        ->findAll();
             
-            // DEBUG: Log pagination info
-            log_message('info', 'User Waste - Categories (paginated): ' . count($categories));
-            log_message('info', 'User Waste - All Categories (dropdown): ' . count($allCategories));
-            log_message('info', 'User Waste - Pager exists: ' . (isset($pagerHarga) ? 'YES' : 'NO'));
-            if (isset($pagerHarga)) {
-                log_message('info', 'User Waste - Page count: ' . $pagerHarga->getPageCount('harga'));
-                log_message('info', 'User Waste - Current page: ' . $pagerHarga->getCurrentPage('harga'));
-                log_message('info', 'User Waste - Total: ' . $pagerHarga->getTotal('harga'));
-            }
+            // HITUNG JUMLAH DATA PER STATUS
+            // HITUNG JUMLAH DATA PER STATUS - GUNAKAN whereIn untuk lebih aman
+            $count_draft_dikirim = $wasteModel
+                ->where('user_id', $user['id'])
+                ->whereIn('status', ['draft', 'dikirim_ke_tps'])
+                ->countAllResults();
+
+            $count_disetujui_tps = $wasteModel
+                ->where('user_id', $user['id'])
+                ->where('status', 'disetujui_tps')
+                ->countAllResults();
+
+            $count_ditolak_tps = $wasteModel
+                ->where('user_id', $user['id'])
+                ->where('status', 'ditolak_tps')
+                ->countAllResults();
+
+            $count_disetujui_admin = $wasteModel
+                ->where('user_id', $user['id'])
+                ->where('status', 'disetujui_admin')
+                ->countAllResults();
+
+            $count_ditolak_admin = $wasteModel
+                ->where('user_id', $user['id'])
+                ->where('status', 'ditolak_admin')
+                ->countAllResults();
+            
+            // Stats untuk dashboard
+            $stats = [
+                'total_entries' => count($waste_list),
+                'pending_count' => $count_draft_dikirim,
+                'approved_count' => $count_disetujui_admin,
+                'rejected_count' => $count_ditolak_admin
+            ];
             
             $viewData = [
                 'title' => 'Manajemen Sampah User',
-                'user' => $data['user'],
-                'unit' => $data['unit'],
-                'waste_list' => $data['waste_list'],
-                'categories' => $categories, // Untuk cards (dengan pagination)
-                'allCategories' => $allCategories, // Untuk dropdown form (semua data)
+                'user' => $user,
+                'unit' => $unit,
+                'waste_list' => $waste_list,
+                'categories' => $categories,
+                'allCategories' => $allCategories,
                 'pagerHarga' => $pagerHarga,
-                'stats' => $data['stats'],
-                'recent_activities' => $data['recent_activities'] ?? []
+                'stats' => $stats,
+                'count_draft_dikirim' => $count_draft_dikirim,
+                'count_disetujui_tps' => $count_disetujui_tps,
+                'count_ditolak_tps' => $count_ditolak_tps,
+                'count_disetujui_admin' => $count_disetujui_admin,
+                'count_ditolak_admin' => $count_ditolak_admin,
+                'recent_activities' => []
             ];
 
             return view('user/waste', $viewData);
@@ -64,25 +103,20 @@ class Waste extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'User Waste Error: ' . $e->getMessage());
             
-            // Last resort: get categories directly
-            $categories = [];
-            try {
-                $db = \Config\Database::connect();
-                $query = $db->query("SELECT * FROM master_harga_sampah WHERE status_aktif = 1 ORDER BY jenis_sampah ASC LIMIT 5");
-                $categories = $query->getResultArray();
-            } catch (\Exception $dbError) {
-                log_message('error', 'User Waste - Even direct query failed: ' . $dbError->getMessage());
-            }
-            
             return view('user/waste', [
                 'title' => 'Manajemen Sampah User',
                 'user' => session()->get('user'),
-                'unit' => null,
+                'unit' => ['nama_unit' => 'Unit'],
                 'waste_list' => [],
-                'categories' => $categories,
-                'allCategories' => [], // Fallback kosong
+                'categories' => [],
+                'allCategories' => [],
                 'pagerHarga' => null,
                 'stats' => [],
+                'count_draft_dikirim' => 0,
+                'count_disetujui_tps' => 0,
+                'count_ditolak_tps' => 0,
+                'count_disetujui_admin' => 0,
+                'count_ditolak_admin' => 0,
                 'error' => 'Terjadi kesalahan saat memuat data sampah'
             ]);
         }
@@ -163,43 +197,160 @@ class Waste extends BaseController
             
             if (!$this->validateSession()) {
                 log_message('warning', 'User Waste Save - Session invalid');
-                return $this->response
-                    ->setContentType('application/json')
-                    ->setJSON(['success' => false, 'message' => 'Session invalid']);
+                return redirect()->to('/auth/login')->with('error', 'Session tidak valid');
             }
 
-            // Get session user data
             $user = session()->get('user');
             if (!$user || !isset($user['id'])) {
                 log_message('error', 'User Waste Save - No user in session');
-                return $this->response->setJSON(['success' => false, 'message' => 'User session tidak valid']);
+                return redirect()->back()->with('error', 'User session tidak valid');
             }
 
             $postData = $this->request->getPost();
-            log_message('info', 'User Waste Save - POST data: ' . json_encode($postData));
-            log_message('info', 'User Waste Save - User: ' . json_encode($user));
+            log_message('info', 'POST Data: ' . json_encode($postData));
+
+            // Handle file upload
+            $foto = $this->request->getFile('foto');
+            $fotoBukti = null;
             
-            // Ensure user_id is set in the data
-            $postData['user_id'] = $user['id'];
+            log_message('info', 'File upload check - File object: ' . ($foto ? 'exists' : 'null'));
             
-            $result = $this->wasteService->saveWaste($postData);
+            if ($foto) {
+                log_message('info', 'File details - Name: ' . $foto->getName() . ', Size: ' . $foto->getSize() . ', Type: ' . $foto->getMimeType());
+                log_message('info', 'File validation - isValid: ' . ($foto->isValid() ? 'yes' : 'no') . ', hasMoved: ' . ($foto->hasMoved() ? 'yes' : 'no'));
+                
+                if ($foto->getError() !== UPLOAD_ERR_OK) {
+                    $errorMessages = [
+                        UPLOAD_ERR_INI_SIZE => 'File terlalu besar (melebihi upload_max_filesize di php.ini)',
+                        UPLOAD_ERR_FORM_SIZE => 'File terlalu besar (melebihi MAX_FILE_SIZE di form)',
+                        UPLOAD_ERR_PARTIAL => 'File hanya terupload sebagian',
+                        UPLOAD_ERR_NO_FILE => 'Tidak ada file yang diupload',
+                        UPLOAD_ERR_NO_TMP_DIR => 'Folder temporary tidak ditemukan',
+                        UPLOAD_ERR_CANT_WRITE => 'Gagal menulis file ke disk',
+                        UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh ekstensi PHP'
+                    ];
+                    $errorMsg = $errorMessages[$foto->getError()] ?? 'Error upload tidak diketahui (code: ' . $foto->getError() . ')';
+                    log_message('error', 'Upload error: ' . $errorMsg);
+                    return redirect()->back()->with('error', 'Error upload foto: ' . $errorMsg)->withInput();
+                }
+            }
             
-            log_message('info', 'User Waste Save - Result: ' . json_encode($result));
+            if ($foto && $foto->isValid() && !$foto->hasMoved()) {
+                // Validate file type
+                $allowedMimes = ['image/jpeg', 'image/png', 'image/jpg'];
+                if (!in_array($foto->getMimeType(), $allowedMimes)) {
+                    log_message('error', 'Invalid mime type: ' . $foto->getMimeType());
+                    return redirect()->back()->with('error', 'Format foto harus JPG, PNG, atau JPEG. Format Anda: ' . $foto->getMimeType())->withInput();
+                }
+                
+                // Validate file size (2MB)
+                if ($foto->getSize() > 2048000) {
+                    $sizeMB = round($foto->getSize() / 1048576, 2);
+                    log_message('error', 'File too large: ' . $sizeMB . 'MB');
+                    return redirect()->back()->with('error', 'Ukuran foto maksimal 2MB. Ukuran file Anda: ' . $sizeMB . 'MB')->withInput();
+                }
+                
+                // Create upload directory if not exists
+                $uploadPath = FCPATH . 'uploads/waste/';
+                if (!is_dir($uploadPath)) {
+                    if (!mkdir($uploadPath, 0755, true)) {
+                        log_message('error', 'Failed to create upload directory: ' . $uploadPath);
+                        return redirect()->back()->with('error', 'Gagal membuat folder upload. Hubungi administrator.')->withInput();
+                    }
+                    log_message('info', 'Upload directory created: ' . $uploadPath);
+                }
+                
+                // Check if directory is writable
+                if (!is_writable($uploadPath)) {
+                    log_message('error', 'Upload directory not writable: ' . $uploadPath);
+                    return redirect()->back()->with('error', 'Folder upload tidak memiliki izin tulis. Hubungi administrator.')->withInput();
+                }
+                
+                // Generate unique filename
+                $newName = 'waste_' . $user['id'] . '_' . time() . '.' . $foto->getExtension();
+                log_message('info', 'Attempting to move file to: ' . $uploadPath . $newName);
+                
+                // Move file
+                if ($foto->move($uploadPath, $newName)) {
+                    $fotoBukti = 'uploads/waste/' . $newName;
+                    log_message('info', '✓ File uploaded successfully: ' . $fotoBukti);
+                } else {
+                    log_message('error', 'Failed to move uploaded file. Error: ' . $foto->getErrorString());
+                    return redirect()->back()->with('error', 'Gagal memindahkan file: ' . $foto->getErrorString())->withInput();
+                }
+            } else {
+                $reason = 'Unknown';
+                if (!$foto) {
+                    $reason = 'File object tidak ditemukan';
+                } elseif (!$foto->isValid()) {
+                    $reason = 'File tidak valid (Error: ' . $foto->getErrorString() . ')';
+                } elseif ($foto->hasMoved()) {
+                    $reason = 'File sudah dipindahkan sebelumnya';
+                }
+                log_message('warning', 'No valid file uploaded. Reason: ' . $reason);
+                return redirect()->back()->with('error', 'Foto bukti wajib diupload. Detail: ' . $reason)->withInput();
+            }
+
+            // Get category info
+            $hargaModel = new \App\Models\HargaSampahModel();
+            $category = $hargaModel->find($postData['kategori_id']);
             
-            return $this->response
-                ->setContentType('application/json')
-                ->setJSON($result);
+            if (!$category) {
+                log_message('error', 'Kategori tidak ditemukan: ' . $postData['kategori_id']);
+                return redirect()->back()->with('error', 'Kategori sampah tidak ditemukan');
+            }
+
+            // Tentukan status - SAMA SEPERTI LIMBAH CAIR
+            $action = $postData['action'] ?? 'draft';
+            $status = ($action === 'kirim') ? 'dikirim_ke_tps' : 'draft';
+            
+            log_message('info', 'Action: ' . $action . ', Status: ' . $status);
+            
+            // Get satuan from input
+            $satuan = $postData['satuan'] ?? 'kg';
+            $beratKg = isset($postData['berat_kg']) ? (float)$postData['berat_kg'] : 0;
+            
+            // Siapkan data untuk insert - LANGSUNG SEPERTI LIMBAH CAIR
+            $data = [
+                'unit_id'         => (int)$user['unit_id'],
+                'user_id'         => (int)$user['id'],  // CRITICAL: user_id
+                'berat_kg'        => $beratKg,
+                'tanggal'         => date('Y-m-d'),
+                'jenis_sampah'    => $category['jenis_sampah'],
+                'nama_sampah'     => $category['nama_jenis'],
+                'satuan'          => $satuan,
+                'jumlah'          => $beratKg,
+                'gedung'          => 'User Unit',
+                'kategori_sampah' => $category['dapat_dijual'] ? 'bisa_dijual' : 'tidak_bisa_dijual',
+                'status'          => $status,
+                'foto_bukti'      => $fotoBukti,
+            ];
+            
+            // Add nilai_rupiah if can be sold
+            if ($category['dapat_dijual']) {
+                $data['nilai_rupiah'] = $beratKg * $category['harga_per_satuan'];
+            }
+            
+            log_message('info', 'Data yang akan disimpan: ' . json_encode($data));
+            
+            // INSERT ke database - LANGSUNG SEPERTI LIMBAH CAIR
+            $wasteModel = new \App\Models\WasteModel();
+            if (!$wasteModel->insert($data)) {
+                // Jika gagal, tampilkan error
+                log_message('error', 'Insert failed: ' . json_encode($wasteModel->errors()));
+                dd($wasteModel->errors());
+            }
+            
+            log_message('info', '✓ BERHASIL INSERT');
+            
+            // Redirect dengan pesan sukses - SAMA SEPERTI LIMBAH CAIR
+            return redirect()->to(base_url('user/waste'))->with('success', 'Data Sampah berhasil disimpan!');
 
         } catch (\Exception $e) {
             log_message('error', 'User Waste Save Error: ' . $e->getMessage());
             log_message('error', 'Stack trace: ' . $e->getTraceAsString());
             
-            return $this->response
-                ->setContentType('application/json')
-                ->setJSON([
-                    'success' => false,
-                    'message' => 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage()
-                ]);
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 
@@ -208,7 +359,6 @@ class Waste extends BaseController
         try {
             log_message('info', '=== User Waste Edit START ===');
             log_message('info', 'ID: ' . $id);
-            log_message('info', 'POST: ' . json_encode($this->request->getPost()));
             
             if (!$this->validateSession()) {
                 log_message('warning', 'Session invalid');
@@ -217,31 +367,25 @@ class Waste extends BaseController
                     ->setJSON(['success' => false, 'message' => 'Session invalid']);
             }
 
-            // Get POST data
-            $data = $this->request->getPost();
-            
-            // Validate
-            if (empty($data['kategori_id'])) {
-                log_message('warning', 'kategori_id empty');
-                return $this->response
-                    ->setContentType('application/json')
-                    ->setJSON(['success' => false, 'message' => 'Kategori sampah harus dipilih']);
-            }
-            
-            if (empty($data['berat_kg']) || $data['berat_kg'] <= 0) {
-                log_message('warning', 'berat_kg invalid: ' . ($data['berat_kg'] ?? 'null'));
-                return $this->response
-                    ->setContentType('application/json')
-                    ->setJSON(['success' => false, 'message' => 'Jumlah/berat harus diisi']);
-            }
-            
-            // Get user
             $user = session()->get('user');
+            $postData = $this->request->getPost();
+            
+            log_message('info', 'POST: ' . json_encode($postData));
             log_message('info', 'User ID: ' . ($user['id'] ?? 'null'));
+            
+            // Ambil ID dari POST
+            $wasteId = $id;
+            
+            if (!$wasteId) {
+                log_message('error', 'GAGAL: ID tidak ditemukan');
+                return $this->response
+                    ->setContentType('application/json')
+                    ->setJSON(['success' => false, 'message' => 'ID tidak ditemukan']);
+            }
             
             // Get waste
             $wasteModel = new \App\Models\WasteModel();
-            $waste = $wasteModel->find($id);
+            $waste = $wasteModel->find($wasteId);
             log_message('info', 'Waste found: ' . ($waste ? 'yes' : 'no'));
             
             if (!$waste) {
@@ -250,10 +394,11 @@ class Waste extends BaseController
                     ->setJSON(['success' => false, 'message' => 'Data tidak ditemukan']);
             }
             
-            if ($waste['unit_id'] != $user['unit_id']) {
+            // Cek ownership
+            if ($waste['user_id'] != $user['id']) {
                 return $this->response
                     ->setContentType('application/json')
-                    ->setJSON(['success' => false, 'message' => 'Bukan milik unit Anda']);
+                    ->setJSON(['success' => false, 'message' => 'Data bukan milik Anda']);
             }
             
             if (!in_array($waste['status'], ['draft', 'perlu_revisi', 'ditolak_tps'])) {
@@ -264,7 +409,7 @@ class Waste extends BaseController
             
             // Get category
             $hargaModel = new \App\Models\HargaSampahModel();
-            $category = $hargaModel->find($data['kategori_id']);
+            $category = $hargaModel->find($postData['kategori_id']);
             log_message('info', 'Category found: ' . ($category ? 'yes' : 'no'));
             
             if (!$category) {
@@ -273,43 +418,36 @@ class Waste extends BaseController
                     ->setJSON(['success' => false, 'message' => 'Kategori tidak ditemukan']);
             }
             
-            // Prepare update data
-            // If editing rejected data and sending again, send back to TPS
-            $status = 'draft';
-            if (isset($data['status_action']) && $data['status_action'] === 'kirim') {
-                if ($waste['status'] === 'ditolak_tps') {
-                    $status = 'dikirim_ke_tps';
-                } else {
-                    $status = 'dikirim';
-                }
-            }
+            // Tentukan status berdasarkan action - SAMA SEPERTI LIMBAH CAIR
+            $action = $postData['action'] ?? 'draft';
+            $status = ($action === 'kirim') ? 'dikirim_ke_tps' : 'draft';
             
-            // berat_kg sudah dalam kg dari frontend (sudah dikonversi)
-            $beratKg = $data['berat_kg'];
-            $satuan = $data['satuan'] ?? $waste['satuan'] ?? 'kg';
+            log_message('info', 'Action: ' . $action . ', Status: ' . $status);
+            
+            // berat_kg sudah dalam kg dari frontend
+            $beratKg = isset($postData['berat_kg']) ? (float)$postData['berat_kg'] : $waste['berat_kg'];
+            $satuan = $postData['satuan'] ?? $waste['satuan'] ?? 'kg';
             
             $updateData = [
-                'berat_kg' => $beratKg,
-                'jumlah' => $beratKg,
-                'satuan' => $satuan,
-                'jenis_sampah' => $category['jenis_sampah'],
+                'berat_kg'        => $beratKg,
+                'jumlah'          => $beratKg,
+                'satuan'          => $satuan,
+                'jenis_sampah'    => $category['jenis_sampah'],
                 'kategori_sampah' => $category['dapat_dijual'] ? 'bisa_dijual' : 'tidak_dijual',
-                'nilai_rupiah' => $category['dapat_dijual'] ? ($beratKg * $category['harga_per_satuan']) : 0,
-                'status' => $status
+                'nilai_rupiah'    => $category['dapat_dijual'] ? ($beratKg * $category['harga_per_satuan']) : 0,
+                'status'          => $status
             ];
             
             log_message('info', 'Update data: ' . json_encode($updateData));
             
-            // Update
-            $result = $wasteModel->update($id, $updateData);
+            // Update - LANGSUNG SEPERTI LIMBAH CAIR
+            $result = $wasteModel->update($wasteId, $updateData);
             log_message('info', 'Update result: ' . ($result ? 'success' : 'failed'));
             
             if ($result) {
                 $message = $status === 'dikirim_ke_tps' 
-                    ? 'Data berhasil diupdate dan dikirim ulang ke TPS' 
-                    : ($status === 'dikirim' 
-                        ? 'Data berhasil diupdate dan dikirim' 
-                        : 'Data berhasil diupdate sebagai draft');
+                    ? 'Data berhasil diupdate dan dikirim ke TPS' 
+                    : 'Data berhasil diupdate sebagai draft';
                 log_message('info', '=== User Waste Edit SUCCESS ===');
                 return $this->response
                     ->setContentType('application/json')
@@ -349,25 +487,26 @@ class Waste extends BaseController
                     ->setJSON(['success' => false, 'message' => 'Session invalid']);
             }
 
-            log_message('info', 'User Delete Waste - Calling service...');
-            $result = $this->wasteService->deleteWaste($id);
-            log_message('info', 'User Delete Waste - Result: ' . json_encode($result));
+            $wasteModel = new \App\Models\WasteModel();
+            $result = $wasteModel->delete($id);
             
-            return $this->response
-                ->setContentType('application/json')
-                ->setJSON($result);
+            if ($result) {
+                return $this->response
+                    ->setContentType('application/json')
+                    ->setJSON(['success' => true, 'message' => 'Data berhasil dihapus']);
+            } else {
+                return $this->response
+                    ->setContentType('application/json')
+                    ->setJSON(['success' => false, 'message' => 'Gagal menghapus data']);
+            }
 
         } catch (\Exception $e) {
             log_message('error', 'User Waste Delete Error: ' . $e->getMessage());
-            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
             
             return $this->response
                 ->setStatusCode(500)
                 ->setContentType('application/json')
-                ->setJSON([
-                    'success' => false,
-                    'message' => 'Terjadi kesalahan saat menghapus data: ' . $e->getMessage()
-                ]);
+                ->setJSON(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
     }
 
@@ -378,13 +517,38 @@ class Waste extends BaseController
                 return redirect()->to('/auth/login');
             }
 
-            $result = $this->wasteService->exportWaste();
+            $user = session()->get('user');
             
-            if ($result['success']) {
-                return $this->response->download($result['file_path'], null)->setFileName($result['filename']);
+            // Ambil data waste user
+            $wasteModel = new \App\Models\WasteModel();
+            $wasteData = $wasteModel
+                ->where('user_id', $user['id'])
+                ->orderBy('tanggal', 'DESC')
+                ->findAll();
+
+            // Generate CSV
+            $csv = "No,Tanggal,Jenis Sampah,Berat (kg),Satuan,Kategori,Nilai (Rp),Status\n";
+            $no = 1;
+            foreach ($wasteData as $waste) {
+                $csv .= sprintf(
+                    "%d,%s,%s,%.2f,%s,%s,%.2f,%s\n",
+                    $no++,
+                    $waste['tanggal'],
+                    $waste['jenis_sampah'],
+                    $waste['berat_kg'],
+                    $waste['satuan'],
+                    $waste['kategori_sampah'],
+                    $waste['nilai_rupiah'] ?? 0,
+                    $waste['status']
+                );
             }
 
-            return redirect()->back()->with('error', $result['message']);
+            $filename = 'Data_Sampah_' . date('YmdHis') . '.csv';
+            
+            return $this->response
+                ->setHeader('Content-Type', 'text/csv')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->setBody($csv);
 
         } catch (\Exception $e) {
             log_message('error', 'User Waste Export Error: ' . $e->getMessage());
@@ -399,13 +563,39 @@ class Waste extends BaseController
                 return redirect()->to('/auth/login');
             }
 
-            $result = $this->wasteService->exportPdf();
+            $user = session()->get('user');
             
-            if ($result['success']) {
-                return $this->response->download($result['file_path'], null)->setFileName($result['filename']);
-            }
+            // Ambil data waste user
+            $wasteModel = new \App\Models\WasteModel();
+            $wasteData = $wasteModel
+                ->where('user_id', $user['id'])
+                ->orderBy('tanggal', 'DESC')
+                ->findAll();
 
-            return redirect()->back()->with('error', $result['message']);
+            // Get user's unit
+            $unitModel = new \App\Models\UnitModel();
+            $unit = $unitModel->find($user['unit_id']) ?? ['nama_unit' => 'Unit'];
+
+            $data = [
+                'title' => 'Laporan Data Sampah',
+                'user' => $user,
+                'unit' => $unit,
+                'waste_data' => $wasteData,
+                'tanggal_cetak' => date('d/m/Y H:i:s')
+            ];
+
+            // Load view untuk PDF
+            $html = view('user/waste_pdf', $data);
+            
+            // Generate PDF menggunakan Dompdf
+            $dompdf = new \Dompdf\Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
+            
+            $filename = 'Data_Sampah_' . date('YmdHis') . '.pdf';
+            $dompdf->stream($filename, ['Attachment' => true]);
+            exit;
 
         } catch (\Exception $e) {
             log_message('error', 'User Waste Export PDF Error: ' . $e->getMessage());
@@ -420,12 +610,71 @@ class Waste extends BaseController
                 return redirect()->to('/auth/login');
             }
 
-            helper('excel');
-            $this->wasteService->exportExcel();
+            $user = session()->get('user');
+            
+            // Ambil data waste user
+            $wasteModel = new \App\Models\WasteModel();
+            $wasteData = $wasteModel
+                ->where('user_id', $user['id'])
+                ->orderBy('tanggal', 'DESC')
+                ->findAll();
+
+            // Load PhpSpreadsheet
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Set header
+            $sheet->setCellValue('A1', 'No');
+            $sheet->setCellValue('B1', 'Tanggal');
+            $sheet->setCellValue('C1', 'Jenis Sampah');
+            $sheet->setCellValue('D1', 'Berat (kg)');
+            $sheet->setCellValue('E1', 'Satuan');
+            $sheet->setCellValue('F1', 'Kategori');
+            $sheet->setCellValue('G1', 'Nilai (Rp)');
+            $sheet->setCellValue('H1', 'Status');
+            
+            // Style header
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '667eea']],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            ];
+            $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+            
+            // Fill data
+            $row = 2;
+            $no = 1;
+            foreach ($wasteData as $data) {
+                $sheet->setCellValue('A' . $row, $no++);
+                $sheet->setCellValue('B' . $row, date('d/m/Y', strtotime($data['tanggal'])));
+                $sheet->setCellValue('C' . $row, $data['jenis_sampah']);
+                $sheet->setCellValue('D' . $row, $data['berat_kg']);
+                $sheet->setCellValue('E' . $row, $data['satuan']);
+                $sheet->setCellValue('F' . $row, $data['kategori_sampah']);
+                $sheet->setCellValue('G' . $row, $data['nilai_rupiah'] ?? 0);
+                $sheet->setCellValue('H' . $row, ucfirst(str_replace('_', ' ', $data['status'])));
+                $row++;
+            }
+            
+            // Auto size columns
+            foreach (range('A', 'H') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            
+            // Generate file
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'Data_Sampah_' . date('YmdHis') . '.xlsx';
+            
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            
+            $writer->save('php://output');
+            exit;
 
         } catch (\Exception $e) {
             log_message('error', 'User Waste Export Excel Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat export Excel');
+            return redirect()->back()->with('error', 'Gagal export Excel: ' . $e->getMessage());
         }
     }
 

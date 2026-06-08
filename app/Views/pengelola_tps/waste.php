@@ -483,8 +483,13 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
                     <h5 class="modal-title">Tambah Data Sampah</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="addWasteForm">
+                <form id="addWasteForm" enctype="multipart/form-data">
                     <?= csrf_field() ?>
+                    <!-- Hidden inputs untuk field yang wajib diisi -->
+                    <input type="hidden" name="jenis_sampah" id="hidden_jenis_sampah" value="">
+                    <input type="hidden" name="gedung" value="TPS Kampus Utama">
+                    <input type="hidden" name="gedung_pelapor" value="TPS Kampus Utama">
+                    <input type="hidden" name="nama_pelapor" value="Pengelola TPS">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="kategori_id" class="form-label">Jenis Sampah *</label>
@@ -568,9 +573,14 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
                     <h5 class="modal-title">Edit Data Sampah</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="editWasteForm">
+                <form id="editWasteForm" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <input type="hidden" id="edit_waste_id" name="waste_id">
+                    <!-- Hidden inputs untuk field yang wajib diisi -->
+                    <input type="hidden" name="jenis_sampah" id="edit_hidden_jenis_sampah" value="">
+                    <input type="hidden" name="gedung" value="TPS Kampus Utama">
+                    <input type="hidden" name="gedung_pelapor" value="TPS Kampus Utama">
+                    <input type="hidden" name="nama_pelapor" value="Pengelola TPS">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="edit_kategori_id_display" class="form-label">Jenis Sampah *</label>
@@ -627,7 +637,7 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <!-- Enhancement Scripts -->
@@ -762,7 +772,13 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
             // Set satuan default saat kategori dipilih
             const selectedOption = this.options[this.selectedIndex];
             const satuanDefault = selectedOption.getAttribute('data-satuan') || 'kg';
+            const jenisDefault = selectedOption.getAttribute('data-jenis') || '';
+            
             document.getElementById('satuan').value = satuanDefault;
+            
+            // Update hidden input jenis_sampah
+            document.getElementById('hidden_jenis_sampah').value = jenisDefault;
+            
             calculateEstimate();
         });
 
@@ -828,9 +844,32 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
             
             const formData = new FormData(this);
             
-            // Konversi jumlah ke kg untuk disimpan
+            // Ambil jenis sampah dari kategori yang dipilih
+            const kategoriSelect = document.getElementById('kategori_id');
+            const selectedOption = kategoriSelect.options[kategoriSelect.selectedIndex];
+            const jenisFromKategori = selectedOption.getAttribute('data-jenis') || 'Anorganik';
+            
+            // Hitung total_nilai sebelum kirim
             const jumlahValue = parseFloat(formData.get('jumlah')) || 0;
             const satuanValue = formData.get('satuan');
+            const hargaPerSatuan = parseFloat(selectedOption.getAttribute('data-harga')) || 0;
+            const satuanMaster = selectedOption.getAttribute('data-satuan') || 'kg';
+            const dapatDijual = selectedOption.getAttribute('data-dapat-dijual') == '1';
+            
+            let totalNilai = 0;
+            if (dapatDijual && jumlahValue > 0) {
+                const jumlahKg = konversiKeKg(jumlahValue, satuanValue);
+                const hargaPerKg = hargaPerSatuan / konversiKeKg(1, satuanMaster);
+                totalNilai = hargaPerKg * jumlahKg;
+            }
+            
+            // Tambahkan data yang diperlukan ke formData
+            formData.append('jenis_sampah', jenisFromKategori); 
+            formData.append('gedung', 'TPS Pusat');
+            formData.append('harga', hargaPerSatuan);
+            formData.append('total_nilai', totalNilai); // Pastikan total_nilai dikirim
+            
+            // Konversi jumlah ke kg untuk disimpan
             const beratKg = konversiKeKg(jumlahValue, satuanValue);
             
             // Tambahkan berat_kg ke form data
@@ -850,10 +889,11 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
+                if (data.status === 'success' || data.success) {
+                    alert('Data berhasil disimpan!');
                     location.reload();
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('Error: ' + (data.message || 'Terjadi kesalahan'));
                     allSubmitBtns.forEach(btn => btn.disabled = false);
                     isSubmitting = false; // Reset flag
                 }
@@ -873,6 +913,19 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
             
             const wasteId = document.getElementById('edit_waste_id').value;
             const formData = new FormData(this);
+            
+            // Hitung total_nilai untuk form edit juga
+            const editJumlah = parseFloat(formData.get('berat_kg')) || 0;
+            const editSatuan = formData.get('satuan') || 'kg';
+            // Untuk edit, kita perlu mengambil harga dari data yang sudah ada atau set default
+            const editHarga = 0; // Bisa diambil dari data existing jika diperlukan
+            const editTotalNilai = editJumlah * editHarga;
+            
+            // Tambahkan baris ini agar database tidak menolak:
+            formData.append('jenis_sampah', 'Anorganik'); 
+            formData.append('gedung', 'TPS Pusat');
+            formData.append('harga', editHarga);
+            formData.append('total_nilai', editTotalNilai);
             
             // Konversi jumlah ke kg untuk disimpan
             const berat = parseFloat(formData.get('berat_kg')) || 0;
@@ -965,6 +1018,9 @@ $tps_info = $tps_info ?? ['nama_unit' => 'TPS'];
                     
                     document.getElementById('edit_berat').value = beratAsli;
                     document.getElementById('edit_unit_id').value = satuan;
+                    
+                    // Update hidden input jenis_sampah untuk edit form
+                    document.getElementById('edit_hidden_jenis_sampah').value = waste.jenis_sampah || '';
                     
                     // Calculate estimate
                     calculateEditEstimate();

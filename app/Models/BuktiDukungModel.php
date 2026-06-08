@@ -14,17 +14,18 @@ class BuktiDukungModel extends Model
     protected $protectFields = true;
     protected $allowedFields = [
         'judul',
-        'periode', 
+        'periode',
+        'kategori',
         'nama_file',
         'ukuran_file',
         'tipe_file'
     ];
 
     // Dates - using uploaded_at instead of created_at/updated_at
-    protected $useTimestamps = false;
+    protected $useTimestamps = true;
     protected $dateFormat = 'datetime';
-    protected $createdField = 'uploaded_at';
-    protected $updatedField = '';
+    protected $createdField = 'created_at';
+    protected $updatedField = 'updated_at';
 
     // Validation
     protected $validationRules = [

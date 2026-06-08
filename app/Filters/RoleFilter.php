@@ -23,7 +23,7 @@ class RoleFilter implements FilterInterface
         // Validasi session user harus memiliki id dan role
         // unit_id tidak wajib untuk role security
         if (!isset($user['id'], $user['role'])) {
-            log_message('error', 'Invalid session data: ' . json_encode($user));
+            log_message('error', 'RoleFilter - Invalid session data: ' . json_encode($user));
             $session->destroy();
             return redirect()->to('/auth/login')
                 ->with('error', 'Session tidak valid. Silakan login kembali');
@@ -32,20 +32,25 @@ class RoleFilter implements FilterInterface
         // Validasi unit_id untuk role yang memerlukan unit
         $rolesRequiringUnit = ['admin_pusat', 'super_admin', 'user', 'pengelola_tps'];
         if (in_array($user['role'], $rolesRequiringUnit) && !isset($user['unit_id'])) {
-            log_message('error', 'Missing unit_id for role requiring unit: ' . json_encode($user));
+            log_message('error', 'RoleFilter - Missing unit_id for role requiring unit: ' . json_encode($user));
             $session->destroy();
             return redirect()->to('/auth/login')
                 ->with('error', 'Session tidak valid. Silakan login kembali');
         }
 
         $userRole = $user['role'];
+        
+        // Get current URI path for debugging
+        $uri = $request->getUri()->getPath();
+        log_message('info', 'RoleFilter - URI: ' . $uri . ', User Role: ' . $userRole . ', Arguments: ' . json_encode($arguments));
 
         // If no role requirement specified, just check if logged in
         if (empty($arguments)) {
+            log_message('info', 'RoleFilter - No role requirement, access granted');
             return null;
         }
 
-        // Handle multiple roles - improved parsing
+        // Handle multiple roles - improved parsing with underscore/dash normalization
         $allowedRoles = [];
         if (is_array($arguments)) {
             // If arguments is already an array
@@ -62,15 +67,29 @@ class RoleFilter implements FilterInterface
             // Split by comma and clean up
             $allowedRoles = array_map('trim', explode(',', $roleString));
         }
+        
+        log_message('info', 'RoleFilter - Allowed roles: ' . json_encode($allowedRoles));
+        
+        // Normalize roles: support both underscore and dash variants
+        $normalizedUserRole = str_replace('-', '_', $userRole);
+        $normalizedAllowedRoles = array_map(function($role) {
+            return str_replace('-', '_', $role);
+        }, $allowedRoles);
+        
+        log_message('info', 'RoleFilter - Normalized user role: ' . $normalizedUserRole . ', Normalized allowed: ' . json_encode($normalizedAllowedRoles));
 
-        // Check if user role is in allowed roles
-        if (!in_array($userRole, $allowedRoles)) {
+        // Check if user role is in allowed roles (with normalization)
+        if (!in_array($normalizedUserRole, $normalizedAllowedRoles)) {
+            log_message('warning', 'RoleFilter - Access denied for role: ' . $userRole . ' to URI: ' . $uri);
+            
             // Redirect based on user role
             $redirectUrl = $this->getRedirectUrlByRole($userRole);
             
             return redirect()->to($redirectUrl)
                 ->with('error', 'Akses ditolak. Anda tidak memiliki akses ke halaman ini.');
         }
+        
+        log_message('info', 'RoleFilter - Access granted for role: ' . $userRole . ' to URI: ' . $uri);
 
         return null;
     }

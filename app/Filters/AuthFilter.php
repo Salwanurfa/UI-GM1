@@ -25,17 +25,32 @@ class AuthFilter implements FilterInterface
      */
     public function before(RequestInterface $request, $arguments = null)
     {
+        $uri = $request->getUri()->getPath();
+        
         // Check if user is logged in
         if (!session()->get('isLoggedIn')) {
+            log_message('info', 'AuthFilter - User not logged in, redirecting to login. URI: ' . $uri);
             return redirect()->to('/auth/login')
                 ->with('error', 'Silakan login terlebih dahulu untuk mengakses halaman ini');
         }
 
+        $user = session()->get('user');
+        $userRole = $user['role'] ?? null;
+        
+        log_message('info', 'AuthFilter - User logged in. Role: ' . $userRole . ', URI: ' . $uri . ', Arguments: ' . json_encode($arguments));
+
         // Check role-based access if arguments provided
         if (!empty($arguments)) {
-            $userRole = session()->get('user')['role'] ?? null;
+            // Normalize roles: support both underscore and dash variants
+            $normalizedUserRole = str_replace('-', '_', $userRole);
+            $normalizedArguments = array_map(function($role) {
+                return str_replace('-', '_', $role);
+            }, $arguments);
+            
+            log_message('info', 'AuthFilter - Checking role access. Normalized user role: ' . $normalizedUserRole . ', Allowed: ' . json_encode($normalizedArguments));
 
-            if (!in_array($userRole, $arguments)) {
+            if (!in_array($normalizedUserRole, $normalizedArguments)) {
+                log_message('warning', 'AuthFilter - Access denied for role: ' . $userRole . ' to URI: ' . $uri);
                 return redirect()->to('/auth/login')
                     ->with('error', 'Anda tidak memiliki akses ke halaman ini');
             }
@@ -47,10 +62,13 @@ class AuthFilter implements FilterInterface
         // Check session timeout (30 minutes)
         $lastActivity = session()->get('last_activity') ?? time();
         if (time() - $lastActivity > 1800) { // 30 minutes
+            log_message('info', 'AuthFilter - Session timeout for user role: ' . $userRole);
             session()->destroy();
             return redirect()->to('/auth/login')
                 ->with('error', 'Sesi Anda telah berakhir. Silakan login kembali');
         }
+        
+        log_message('info', 'AuthFilter - Access granted for role: ' . $userRole . ' to URI: ' . $uri);
     }
 
     /**

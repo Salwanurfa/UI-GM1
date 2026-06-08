@@ -2,87 +2,111 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Data Sampah - <?= $unit['nama_unit'] ?? 'User' ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= esc($title) ?></title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            margin: 20px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+            padding: 20px;
+        }
+        
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
         }
+        
         .header h1 {
-            margin: 0;
             font-size: 18px;
-            color: #333;
-        }
-        .header p {
-            margin: 5px 0;
-            color: #666;
-        }
-        .info-box {
-            background: #f5f5f5;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-        }
-        .info-box table {
-            width: 100%;
-        }
-        .info-box td {
-            padding: 3px 0;
-        }
-        .info-box td:first-child {
-            width: 150px;
-            font-weight: bold;
-        }
-        .stats-grid {
-            display: table;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .stat-item {
-            display: table-cell;
-            width: 20%;
-            text-align: center;
-            padding: 10px;
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-        }
-        .stat-item .label {
-            font-size: 10px;
-            color: #666;
+            color: #667eea;
             margin-bottom: 5px;
-        }
-        .stat-item .value {
-            font-size: 16px;
             font-weight: bold;
-            color: #333;
         }
-        table.data-table {
+        
+        .header h2 {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 3px;
+        }
+        
+        .header p {
+            font-size: 10px;
+            color: #777;
+        }
+        
+        .info-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-section table {
+            width: 100%;
+        }
+        
+        .info-section td {
+            padding: 3px 5px;
+            font-size: 10px;
+        }
+        
+        .info-section td:first-child {
+            width: 120px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 10px;
         }
-        table.data-table th {
-            background: #4CAF50;
+        
+        .data-table thead {
+            background-color: #667eea;
             color: white;
-            padding: 8px;
-            text-align: left;
-            font-size: 11px;
         }
-        table.data-table td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #ddd;
+        
+        .data-table th {
+            padding: 8px 5px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: bold;
+            border: 1px solid #667eea;
+        }
+        
+        .data-table td {
+            padding: 6px 5px;
+            border: 1px solid #ddd;
             font-size: 10px;
         }
-        table.data-table tr:nth-child(even) {
-            background: #f9f9f9;
+        
+        .data-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
         }
+        
+        .data-table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
         .status-badge {
             padding: 3px 8px;
             border-radius: 3px;
@@ -90,146 +114,180 @@
             font-weight: bold;
             display: inline-block;
         }
-        .status-draft { background: #9e9e9e; color: white; }
-        .status-dikirim { background: #2196F3; color: white; }
-        .status-review { background: #FF9800; color: white; }
-        .status-disetujui { background: #4CAF50; color: white; }
-        .status-perlu_revisi { background: #f44336; color: white; }
-        .footer {
-            margin-top: 30px;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
-            text-align: center;
-            font-size: 10px;
-            color: #666;
+        
+        .status-draft {
+            background-color: #ffc107;
+            color: #000;
         }
-        .summary-box {
-            background: #e8f5e9;
-            padding: 15px;
+        
+        .status-dikirim {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .status-disetujui {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .status-ditolak {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .footer {
             margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #ddd;
+            text-align: center;
+            font-size: 9px;
+            color: #777;
+        }
+        
+        .summary-box {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e7f3ff;
+            border: 1px solid #667eea;
             border-radius: 5px;
         }
-        .summary-box h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            color: #2e7d32;
-        }
+        
         .summary-box table {
             width: 100%;
         }
+        
         .summary-box td {
-            padding: 5px 0;
+            padding: 4px 8px;
+            font-size: 10px;
         }
-        .summary-box td:last-child {
-            text-align: right;
+        
+        .summary-box td:first-child {
             font-weight: bold;
+            width: 200px;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
+    <!-- Header -->
     <div class="header">
         <h1>LAPORAN DATA SAMPAH</h1>
-        <p><?= $unit['nama_unit'] ?? 'User Unit' ?></p>
-        <p style="font-size: 10px;">Dicetak pada: <?= $generated_at ?></p>
+        <h2>Politeknik Negeri Bandung</h2>
+        <p>UI GreenMetric Management System</p>
     </div>
-
-    <div class="info-box">
+    
+    <!-- Info Section -->
+    <div class="info-section">
         <table>
             <tr>
-                <td>Unit</td>
-                <td>: <?= $unit['nama_unit'] ?? 'N/A' ?></td>
+                <td>Nama Pelapor</td>
+                <td>: <?= esc($user['nama'] ?? 'N/A') ?></td>
             </tr>
             <tr>
-                <td>Penanggung Jawab</td>
-                <td>: <?= $user['nama_lengkap'] ?? 'N/A' ?></td>
+                <td>Unit/Bagian</td>
+                <td>: <?= esc($unit['nama_unit'] ?? 'N/A') ?></td>
+            </tr>
+            <tr>
+                <td>Tanggal Cetak</td>
+                <td>: <?= esc($tanggal_cetak) ?></td>
             </tr>
             <tr>
                 <td>Total Data</td>
-                <td>: <?= count($waste_list) ?> data</td>
+                <td>: <?= count($waste_data) ?> record</td>
             </tr>
         </table>
     </div>
-
-    <div class="stats-grid">
-        <div class="stat-item">
-            <div class="label">Draft</div>
-            <div class="value"><?= $status_count['draft'] ?></div>
-        </div>
-        <div class="stat-item">
-            <div class="label">Dikirim</div>
-            <div class="value"><?= $status_count['dikirim'] ?></div>
-        </div>
-        <div class="stat-item">
-            <div class="label">Review</div>
-            <div class="value"><?= $status_count['review'] ?></div>
-        </div>
-        <div class="stat-item">
-            <div class="label">Disetujui</div>
-            <div class="value"><?= $status_count['disetujui'] ?></div>
-        </div>
-        <div class="stat-item">
-            <div class="label">Perlu Revisi</div>
-            <div class="value"><?= $status_count['perlu_revisi'] ?></div>
-        </div>
-    </div>
-
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th style="width: 5%;">No</th>
-                <th style="width: 12%;">Tanggal</th>
-                <th style="width: 20%;">Jenis Sampah</th>
-                <th style="width: 12%;">Berat</th>
-                <th style="width: 10%;">Satuan</th>
-                <th style="width: 18%;">Nilai (Rp)</th>
-                <th style="width: 13%;">Status</th>
-                <th style="width: 10%;">Kategori</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php $no = 1; ?>
-            <?php foreach ($waste_list as $item): ?>
-            <tr>
-                <td><?= $no++ ?></td>
-                <td><?= date('d/m/Y', strtotime($item['created_at'])) ?></td>
-                <td><?= $item['jenis_sampah'] ?? 'N/A' ?></td>
-                <td><?= number_format($item['berat_kg'], 2) ?></td>
-                <td><?= $item['satuan'] ?? 'kg' ?></td>
-                <td><?= number_format($item['nilai_rupiah'] ?? 0, 0, ',', '.') ?></td>
-                <td>
-                    <?php
-                    $status = $item['status'] ?? 'draft';
-                    $statusText = ucfirst(str_replace('_', ' ', $status));
-                    ?>
-                    <span class="status-badge status-<?= $status ?>"><?= $statusText ?></span>
-                </td>
-                <td><?= $item['kategori_sampah'] ?? 'N/A' ?></td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-
-    <div class="summary-box">
-        <h3>RINGKASAN</h3>
-        <table>
-            <tr>
-                <td>Total Berat Sampah</td>
-                <td><?= number_format($total_berat, 2) ?> kg</td>
-            </tr>
-            <tr>
-                <td>Total Nilai</td>
-                <td>Rp <?= number_format($total_nilai, 0, ',', '.') ?></td>
-            </tr>
-            <tr>
-                <td>Total Data</td>
-                <td><?= count($waste_list) ?> data</td>
-            </tr>
+    
+    <!-- Data Table -->
+    <?php if (!empty($waste_data)): ?>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 30px;">No</th>
+                    <th style="width: 80px;">Tanggal</th>
+                    <th>Jenis Sampah</th>
+                    <th class="text-right" style="width: 70px;">Berat (kg)</th>
+                    <th style="width: 50px;">Satuan</th>
+                    <th style="width: 90px;">Kategori</th>
+                    <th class="text-right" style="width: 80px;">Nilai (Rp)</th>
+                    <th class="text-center" style="width: 80px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php 
+                $no = 1;
+                $totalBerat = 0;
+                $totalNilai = 0;
+                foreach ($waste_data as $data): 
+                    $totalBerat += $data['berat_kg'];
+                    $totalNilai += $data['nilai_rupiah'] ?? 0;
+                    
+                    // Determine status class
+                    $statusClass = 'status-draft';
+                    $statusText = 'Draft';
+                    
+                    if (strpos($data['status'], 'disetujui') !== false) {
+                        $statusClass = 'status-disetujui';
+                        $statusText = 'Disetujui';
+                    } elseif (strpos($data['status'], 'ditolak') !== false) {
+                        $statusClass = 'status-ditolak';
+                        $statusText = 'Ditolak';
+                    } elseif (strpos($data['status'], 'dikirim') !== false) {
+                        $statusClass = 'status-dikirim';
+                        $statusText = 'Dikirim';
+                    }
+                ?>
+                <tr>
+                    <td class="text-center"><?= $no++ ?></td>
+                    <td><?= date('d/m/Y', strtotime($data['tanggal'])) ?></td>
+                    <td><?= esc($data['jenis_sampah']) ?></td>
+                    <td class="text-right"><?= number_format($data['berat_kg'], 2, ',', '.') ?></td>
+                    <td><?= esc($data['satuan']) ?></td>
+                    <td><?= esc(ucwords(str_replace('_', ' ', $data['kategori_sampah']))) ?></td>
+                    <td class="text-right"><?= number_format($data['nilai_rupiah'] ?? 0, 0, ',', '.') ?></td>
+                    <td class="text-center">
+                        <span class="status-badge <?= $statusClass ?>">
+                            <?= $statusText ?>
+                        </span>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
         </table>
-    </div>
-
+        
+        <!-- Summary Box -->
+        <div class="summary-box">
+            <table>
+                <tr>
+                    <td><strong>Total Berat Sampah:</strong></td>
+                    <td><?= number_format($totalBerat, 2, ',', '.') ?> kg</td>
+                </tr>
+                <tr>
+                    <td><strong>Total Nilai Ekonomis:</strong></td>
+                    <td>Rp <?= number_format($totalNilai, 0, ',', '.') ?></td>
+                </tr>
+                <tr>
+                    <td><strong>Jumlah Record:</strong></td>
+                    <td><?= count($waste_data) ?> data</td>
+                </tr>
+            </table>
+        </div>
+    <?php else: ?>
+        <div class="no-data">
+            <p>Tidak ada data sampah yang tersedia untuk dicetak.</p>
+        </div>
+    <?php endif; ?>
+    
+    <!-- Footer -->
     <div class="footer">
-        <p>Dokumen ini digenerate secara otomatis oleh sistem UI GreenMetric POLBAN</p>
-        <p>Dicetak pada: <?= $generated_at ?></p>
+        <p>Dokumen ini dicetak secara otomatis oleh sistem UI GreenMetric Management System - Politeknik Negeri Bandung</p>
+        <p>Dicetak pada: <?= esc($tanggal_cetak) ?></p>
     </div>
 </body>
 </html>

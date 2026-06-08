@@ -21,6 +21,24 @@ class Waste extends BaseController
                 return redirect()->to('/auth/login');
             }
 
+            // Debug: Cek data langsung dari model
+            $wasteModel = new \App\Models\WasteModel();
+            $user = session()->get('user');
+            
+            log_message('info', 'TPS Waste Index - User session: ' . json_encode($user));
+            
+            // Ambil semua data untuk debugging
+            $allWasteData = $wasteModel->orderBy('id', 'DESC')->findAll();
+            log_message('info', 'TPS Waste Index - Total waste records: ' . count($allWasteData));
+            
+            // Ambil data dengan filter unit_id
+            $userUnitId = $user['unit_id'] ?? null;
+            $filteredWasteData = [];
+            if ($userUnitId) {
+                $filteredWasteData = $wasteModel->where('unit_id', $userUnitId)->orderBy('id', 'DESC')->findAll();
+                log_message('info', 'TPS Waste Index - Filtered waste records for unit_id ' . $userUnitId . ': ' . count($filteredWasteData));
+            }
+
             $data = $this->wasteService->getWasteData();
             
             $hargaModel = new \App\Models\HargaSampahModel();
@@ -136,141 +154,88 @@ class Waste extends BaseController
     {
         try {
             if (!$this->validateSession()) {
-                return $this->response->setJSON(['success' => false, 'message' => 'Session invalid']);
+                return $this->response->setJSON(['status' => 'error', 'message' => 'Session invalid']);
             }
 
             // Get session user data
             $user = session()->get('user');
             if (!$user || !isset($user['id'])) {
                 log_message('error', 'TPS Waste Save - No user in session');
-                return $this->response->setJSON(['success' => false, 'message' => 'User session tidak valid']);
+                return $this->response->setJSON(['status' => 'error', 'message' => 'User session tidak valid']);
             }
 
-            // Get POST data
-            $postData = $this->request->getPost();
+            // 1. Ambil File Foto
+            $fileFoto = $this->request->getFile('foto');
             
-            // Handle file upload
-            $buktiFotoPath = null;
-            $file = $this->request->getFile('bukti_foto');
-            
-            if ($file && $file->isValid() && !$file->hasMoved()) {
-                // Validate file
+            // 2. Validasi: Pastikan Foto Diunggah (Sesuai Peringatan di Gambar)
+            if ($fileFoto && $fileFoto->isValid() && !$fileFoto->hasMoved()) {
+                // Validate file type
                 $validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-                if (!in_array($file->getMimeType(), $validTypes)) {
-                    if ($this->request->isAJAX()) {
-                        return $this->response->setJSON(['success' => false, 'message' => 'File harus berformat JPG atau PNG']);
-                    }
-                    return redirect()->back()->withInput()->with('error', 'File harus berformat JPG atau PNG');
+                if (!in_array($fileFoto->getMimeType(), $validTypes)) {
+                    return $this->response->setJSON(['status' => 'error', 'message' => 'File harus berformat JPG atau PNG']);
                 }
                 
                 // Check file size (max 5MB)
-                if ($file->getSize() > 5242880) {
-                    if ($this->request->isAJAX()) {
-                        return $this->response->setJSON(['success' => false, 'message' => 'Ukuran file maksimal 5MB']);
-                    }
-                    return redirect()->back()->withInput()->with('error', 'Ukuran file maksimal 5MB');
+                if ($fileFoto->getSize() > 5242880) {
+                    return $this->response->setJSON(['status' => 'error', 'message' => 'Ukuran file maksimal 5MB']);
                 }
                 
-                // Generate unique filename
-                $newName = 'waste_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $file->getExtension();
+                $newName = $fileFoto->getRandomName();
                 
-                // Create upload directory if not exists
-                $uploadPath = WRITEPATH . 'uploads/waste_photos/';
+                // Pastikan folder uploads/waste/ ada
+                $uploadPath = 'uploads/waste/';
                 if (!is_dir($uploadPath)) {
-                    if (!mkdir($uploadPath, 0755, true)) {
-                        log_message('error', 'TPS Waste Save - Failed to create upload directory: ' . $uploadPath);
-                        return $this->response->setJSON(['success' => false, 'message' => 'Gagal membuat direktori upload: ' . $uploadPath]);
-                    }
-                    log_message('info', 'TPS Waste Save - Created upload directory: ' . $uploadPath);
+                    mkdir($uploadPath, 0755, true);
                 }
                 
-                // Test if directory is writable
-                if (!is_writable($uploadPath)) {
-                    log_message('error', 'TPS Waste Save - Upload directory not writable: ' . $uploadPath);
-                    return $this->response->setJSON(['success' => false, 'message' => 'Direktori upload tidak dapat ditulis: ' . $uploadPath]);
-                }
-                
-                // Move file
-                if (!$file->move($uploadPath, $newName)) {
-                    log_message('error', 'TPS Waste Save - Failed to move uploaded file');
-                    return $this->response->setJSON(['success' => false, 'message' => 'Gagal menyimpan file bukti foto']);
-                }
-                
-                $buktiFotoPath = 'waste_photos/' . $newName;
-                log_message('info', 'TPS Waste Save - File uploaded: ' . $buktiFotoPath);
+                $fileFoto->move($uploadPath, $newName);
             } else {
-                log_message('error', 'TPS Waste Save - File upload failed or not provided');
-                if ($this->request->isAJAX()) {
-                    return $this->response->setJSON(['success' => false, 'message' => 'Bukti foto harus diupload']);
-                }
-                return redirect()->back()->withInput()->with('error', 'Bukti foto harus diupload');
+                // Jika foto gagal/tidak ada, kirim pesan error spesifik
+                return $this->response->setJSON(['status' => 'error', 'message' => 'Foto bukti wajib diupload!']);
             }
-            
-            // Determine status based on action button
-            $action = $postData['action'] ?? 'draft';
-            $status = ($action === 'kirim') ? 'disetujui_tps' : 'draft';
-            
-            // Prepare data for direct model insertion (bypass service for TPS)
-            $wasteModel = new \App\Models\WasteModel();
-            
+
+            // 3. Siapkan Data (Samakan dengan kolom Database uigm_polban)
             $data = [
                 'user_id' => $user['id'],
-                'unit_id' => $user['unit_id'] ?? null,
-                'jenis_sampah' => $postData['jenis_sampah'] ?? '',
-                'nama_sampah' => $postData['jenis_sampah'] ?? '',
-                'jumlah' => (float)($postData['jumlah'] ?? 0),
-                'satuan' => $postData['satuan'] ?? 'kg',
-                'tanggal' => $postData['tanggal_waktu'] ?? date('Y-m-d H:i:s'),
-                'gedung' => $postData['gedung_pelapor'] ?? '',
-                'nama_pelapor' => $postData['nama_pelapor'] ?? '',
-                'gedung_pelapor' => $postData['gedung_pelapor'] ?? '',
-                'bukti_foto' => $buktiFotoPath,
-                'catatan_admin' => $postData['catatan'] ?? '',
-                'status' => $status,
-                'created_by' => $user['id'],
+                'unit_id' => $user['unit_id'] ?? $user['id'], // Pastikan unit_id terisi
+                'jenis_sampah' => $this->request->getPost('jenis_sampah') ?? 'Anorganik', // Default value
+                'nama_sampah' => $this->request->getPost('jenis_sampah') ?? 'Anorganik',
+                'jumlah' => $this->request->getPost('jumlah'),
+                'satuan' => $this->request->getPost('satuan') ?? 'kg',
+                'harga' => $this->request->getPost('harga') ?? 0,
+                'total_nilai' => $this->request->getPost('total_nilai') ?? 0,
+                'nilai_rupiah' => $this->request->getPost('total_nilai') ?? 0, // Kolom database yang benar
+                'tanggal' => $this->request->getPost('tanggal_waktu') ?? date('Y-m-d H:i:s'),
+                'gedung' => $this->request->getPost('gedung') ?? 'TPS Pusat', // Default value
+                'nama_pelapor' => $this->request->getPost('nama_pelapor') ?? 'Pengelola TPS',
+                'gedung_pelapor' => $this->request->getPost('gedung_pelapor') ?? 'TPS Pusat',
+                'foto_bukti' => $newName, // Simpan nama filenya saja
+                'bukti_foto' => $newName, // Untuk kompatibilitas
+                'catatan_admin' => $this->request->getPost('catatan') ?? '',
+                'status' => 'dikirim', // Status yang dikenali Admin
                 'action_timestamp' => date('Y-m-d H:i:s')
             ];
-            
-            log_message('info', 'TPS Waste Save - Prepared data: ' . json_encode($data));
-            
-            // Insert data directly using model
-            $result = $wasteModel->insert($data);
-            
-            if ($result) {
-                $message = ($action === 'kirim') ? 'Data sampah berhasil disimpan dan dikirim' : 'Data sampah berhasil disimpan sebagai draft';
-                
-                // Check if this is AJAX request
-                if ($this->request->isAJAX()) {
-                    return $this->response
-                        ->setContentType('application/json')
-                        ->setJSON(['success' => true, 'message' => $message]);
-                }
-                
-                return redirect()->to('/pengelola-tps/waste')->with('success', $message);
+
+            // Debug logging untuk memastikan data terkirim
+            log_message('info', 'TPS Waste Save - User session: ' . json_encode($user));
+            log_message('info', 'TPS Waste Save - POST data received: ' . json_encode($this->request->getPost()));
+            log_message('info', 'TPS Waste Save - Data prepared: ' . json_encode($data));
+
+            // 4. Proses Simpan dengan Error Reporting
+            $model = new \App\Models\WasteModel();
+            if ($model->save($data)) {
+                return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil disimpan']);
             } else {
-                log_message('error', 'TPS Waste Save - Model insert failed');
-                
-                if ($this->request->isAJAX()) {
-                    return $this->response->setJSON(['success' => false, 'message' => 'Gagal menyimpan data ke database']);
-                }
-                
-                return redirect()->back()->withInput()->with('error', 'Gagal menyimpan data ke database');
+                // Tampilkan error database asli jika gagal
+                return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal ke Database: ' . implode(', ', $model->errors())]);
             }
 
         } catch (\Exception $e) {
             log_message('error', 'TPS Waste Save Error: ' . $e->getMessage());
-            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
-            
-            if ($this->request->isAJAX()) {
-                return $this->response
-                    ->setContentType('application/json')
-                    ->setJSON([
-                        'success' => false,
-                        'message' => 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage()
-                    ]);
-            }
-            
-            return redirect()->back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage()
+            ]);
         }
     }
 

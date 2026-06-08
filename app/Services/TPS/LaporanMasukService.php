@@ -7,6 +7,7 @@ use App\Models\UserModel;
 use App\Models\UnitModel;
 use App\Models\LimbahB3Model;
 use App\Models\MasterLimbahB3Model;
+use App\Models\LimbahCairModel;
 
 class LaporanMasukService
 {
@@ -15,6 +16,7 @@ class LaporanMasukService
     protected $unitModel;
     protected $limbahB3Model;
     protected $masterLimbahB3Model;
+    protected $limbahCairModel;
 
     public function __construct()
     {
@@ -23,6 +25,7 @@ class LaporanMasukService
         $this->unitModel = new UnitModel();
         $this->limbahB3Model = new LimbahB3Model();
         $this->masterLimbahB3Model = new MasterLimbahB3Model();
+        $this->limbahCairModel = new LimbahCairModel();
     }
 
     public function getLaporanMasuk(): array
@@ -94,6 +97,24 @@ class LaporanMasukService
                 return ['success' => true, 'data' => $laporan];
             }
             
+            // If not limbah_b3, check if it's limbah_cair
+            $laporan = $db->table('limbah_cair')
+                ->select('limbah_cair.*,
+                         users.nama_lengkap as user_nama,
+                         users.email as user_email')
+                ->join('users', 'users.id = limbah_cair.id_user', 'left')
+                ->where('limbah_cair.id', $id)
+                ->get()
+                ->getRowArray();
+            
+            if ($laporan) {
+                $laporan['type'] = 'limbah_cair';
+                if (!in_array($laporan['status'], ['dikirim_ke_tps', 'disetujui_tps', 'ditolak_tps'])) {
+                    return ['success' => false, 'message' => 'Laporan tidak valid untuk TPS ini'];
+                }
+                return ['success' => true, 'data' => $laporan];
+            }
+            
             return ['success' => false, 'message' => 'Laporan tidak ditemukan'];
 
         } catch (\Exception $e) {
@@ -129,6 +150,14 @@ class LaporanMasukService
             if ($limbah) {
                 log_message('info', 'TPS Approve - Type: LIMBAH_B3');
                 return $this->approveLimbahB3Laporan($id, $user['id'], $catatan, $db);
+            }
+            
+            // Check if limbah_cair report
+            $limbahCair = $this->limbahCairModel->find($id);
+            
+            if ($limbahCair) {
+                log_message('info', 'TPS Approve - Type: LIMBAH_CAIR');
+                return $this->approveLimbahCairLaporan($id, $user['id'], $catatan, $db);
             }
             
             $db->transRollback();
@@ -225,6 +254,73 @@ class LaporanMasukService
         return ['success' => true, 'message' => 'Laporan limbah B3 berhasil disetujui. Data telah masuk ke sistem TPS.'];
     }
 
+    private function approveLimbahCairLaporan(int $id, int $userId, string $catatan, object $db): array
+    {
+        $limbahCair = $this->limbahCairModel->find($id);
+        
+        if (!$limbahCair) {
+            $db->transRollback();
+            log_message('error', 'TPS Approve Limbah Cair - Data not found: ' . $id);
+            return ['success' => false, 'message' => 'Laporan limbah cair tidak ditemukan'];
+        }
+
+        // ===== DEBUGGING: Tampilkan status aktual =====
+        log_message('info', '=== TPS APPROVE LIMBAH CAIR DEBUG ===');
+        log_message('info', 'ID: ' . $id);
+        log_message('info', 'Current status: ' . $limbahCair['status']);
+        log_message('info', 'Expected status: dikirim_ke_tps');
+        log_message('info', 'All data: ' . json_encode($limbahCair));
+
+        // ===== VALIDASI STATUS YANG DIPERLUAS =====
+        // Terima: 'dikirim_ke_tps', 'dikirim', atau 'draft' (untuk testing)
+        $validStatuses = ['dikirim_ke_tps', 'dikirim', 'draft'];
+        
+        if (!in_array($limbahCair['status'], $validStatuses)) {
+            $db->transRollback();
+            log_message('error', 'TPS Approve Limbah Cair - Invalid status: ' . $limbahCair['status']);
+            log_message('error', 'Valid statuses are: ' . implode(', ', $validStatuses));
+            return [
+                'success' => false, 
+                'message' => 'Laporan limbah cair tidak dalam status menunggu review TPS. Status saat ini: ' . $limbahCair['status']
+            ];
+        }
+
+        log_message('info', 'TPS Approve Limbah Cair - Status validation PASSED');
+
+        $updateData = [
+            'status' => 'disetujui_tps',
+            'reviewed_by' => $userId,
+            'reviewed_at' => date('Y-m-d H:i:s'),
+            'rejection_reason' => $catatan ?: 'Disetujui oleh TPS'
+        ];
+        
+        log_message('info', 'TPS Approve Limbah Cair - Update data: ' . json_encode($updateData));
+        log_message('info', 'TPS Approve Limbah Cair - Setting status to: disetujui_tps for ID: ' . $id);
+        
+        $result = $this->limbahCairModel->update($id, $updateData);
+        
+        log_message('info', 'TPS Approve Limbah Cair - Update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+        
+        if (!$result) {
+            $errors = $this->limbahCairModel->errors();
+            log_message('error', 'TPS Approve Limbah Cair - Model errors: ' . json_encode($errors));
+        }
+        
+        $db->transComplete();
+        
+        if ($db->transStatus() === false) {
+            log_message('error', 'TPS Approve Limbah Cair - Transaction failed');
+            return ['success' => false, 'message' => 'Gagal menyetujui laporan limbah cair. Silakan coba lagi.'];
+        }
+
+        // Verifikasi update berhasil
+        $updated = $this->limbahCairModel->find($id);
+        log_message('info', 'TPS Approve Limbah Cair - Status after update: ' . ($updated['status'] ?? 'NOT FOUND'));
+
+        log_message('info', '=== TPS APPROVE LIMBAH CAIR SUCCESS ===');
+        return ['success' => true, 'message' => 'Laporan limbah cair berhasil disetujui. Data telah masuk ke sistem TPS.'];
+    }
+
     public function rejectLaporan(int $id, string $catatan): array
     {
         $db = \Config\Database::connect();
@@ -252,6 +348,14 @@ class LaporanMasukService
             if ($limbah) {
                 log_message('info', 'TPS Reject - Type: LIMBAH_B3');
                 return $this->rejectLimbahB3Laporan($id, $user['id'], $catatan, $db);
+            }
+            
+            // Check if limbah_cair report
+            $limbahCair = $this->limbahCairModel->find($id);
+            
+            if ($limbahCair) {
+                log_message('info', 'TPS Reject - Type: LIMBAH_CAIR');
+                return $this->rejectLimbahCairLaporan($id, $user['id'], $catatan, $db);
             }
             
             $db->transRollback();
@@ -360,6 +464,76 @@ class LaporanMasukService
         return ['success' => true, 'message' => 'Laporan limbah B3 berhasil ditolak'];
     }
 
+    private function rejectLimbahCairLaporan(int $id, int $userId, string $catatan, object $db): array
+    {
+        $limbahCair = $this->limbahCairModel->find($id);
+        
+        if (!$limbahCair) {
+            $db->transRollback();
+            log_message('error', 'TPS Reject Limbah Cair - Data not found: ' . $id);
+            return ['success' => false, 'message' => 'Laporan limbah cair tidak ditemukan'];
+        }
+
+        // ===== DEBUGGING: Tampilkan status aktual =====
+        log_message('info', '=== TPS REJECT LIMBAH CAIR DEBUG ===');
+        log_message('info', 'ID: ' . $id);
+        log_message('info', 'Current status: ' . $limbahCair['status']);
+        log_message('info', 'Catatan: ' . $catatan);
+
+        // ===== VALIDASI STATUS YANG DIPERLUAS =====
+        $validStatuses = ['dikirim_ke_tps', 'dikirim', 'draft'];
+        
+        if (!in_array($limbahCair['status'], $validStatuses)) {
+            $db->transRollback();
+            log_message('error', 'TPS Reject Limbah Cair - Invalid status: ' . $limbahCair['status']);
+            return [
+                'success' => false, 
+                'message' => 'Laporan limbah cair tidak dalam status menunggu review TPS. Status saat ini: ' . $limbahCair['status']
+            ];
+        }
+
+        if (empty($catatan)) {
+            $db->transRollback();
+            log_message('error', 'TPS Reject Limbah Cair - Empty catatan');
+            return ['success' => false, 'message' => 'Alasan penolakan harus diisi'];
+        }
+
+        log_message('info', 'TPS Reject Limbah Cair - Status validation PASSED');
+
+        $updateData = [
+            'status' => 'ditolak_tps',
+            'reviewed_by' => $userId,
+            'reviewed_at' => date('Y-m-d H:i:s'),
+            'rejection_reason' => $catatan
+        ];
+        
+        log_message('info', 'TPS Reject Limbah Cair - Update data: ' . json_encode($updateData));
+        log_message('info', 'TPS Reject Limbah Cair - Setting status to: ditolak_tps for ID: ' . $id);
+        
+        $result = $this->limbahCairModel->update($id, $updateData);
+        
+        log_message('info', 'TPS Reject Limbah Cair - Update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+        
+        if (!$result) {
+            $errors = $this->limbahCairModel->errors();
+            log_message('error', 'TPS Reject Limbah Cair - Model errors: ' . json_encode($errors));
+        }
+        
+        $db->transComplete();
+        
+        if ($db->transStatus() === false) {
+            log_message('error', 'TPS Reject Limbah Cair - Transaction failed');
+            return ['success' => false, 'message' => 'Gagal menolak laporan limbah cair. Silakan coba lagi.'];
+        }
+
+        // Verifikasi update berhasil
+        $updated = $this->limbahCairModel->find($id);
+        log_message('info', 'TPS Reject Limbah Cair - Status after update: ' . ($updated['status'] ?? 'NOT FOUND'));
+
+        log_message('info', '=== TPS REJECT LIMBAH CAIR SUCCESS ===');
+        return ['success' => true, 'message' => 'Laporan limbah cair berhasil ditolak'];
+    }
+
     private function getLaporanPending(int $tpsId): array
     {
         try {
@@ -401,8 +575,34 @@ class LaporanMasukService
                 ->get()
                 ->getResultArray();
             
+            // Get all limbah_cair reports with status 'dikirim_ke_tps'
+            $limbahCairReports = $db->table('limbah_cair')
+                ->select('limbah_cair.id,
+                         limbah_cair.id_user as user_id,
+                         limbah_cair.lokasi,
+                         limbah_cair.nama_limbah,
+                         limbah_cair.kode_limbah,
+                         limbah_cair.timbulan,
+                         limbah_cair.satuan,
+                         limbah_cair.bentuk_fisik,
+                         limbah_cair.kemasan,
+                         limbah_cair.ph,
+                         limbah_cair.bod,
+                         limbah_cair.cod,
+                         limbah_cair.tss,
+                         limbah_cair.keterangan,
+                         limbah_cair.status,
+                         limbah_cair.tanggal_input as created_at,
+                         users.nama_lengkap as user_nama,
+                         users.email as user_email,
+                         "limbah_cair" as type')
+                ->join('users', 'users.id = limbah_cair.id_user', 'left')
+                ->where('limbah_cair.status', 'dikirim_ke_tps')
+                ->get()
+                ->getResultArray();
+            
             // Combine and sort by date
-            $allReports = array_merge($wasteReports, $limbahB3Reports);
+            $allReports = array_merge($wasteReports, $limbahB3Reports, $limbahCairReports);
             
             // Sort by created_at ascending
             usort($allReports, function($a, $b) {
@@ -460,8 +660,28 @@ class LaporanMasukService
                 ->get()
                 ->getResultArray();
             
+            // Get limbah_cair reports that have been reviewed
+            $limbahCairReviewed = $db->table('limbah_cair')
+                ->select('limbah_cair.id,
+                         limbah_cair.id_user as user_id,
+                         limbah_cair.lokasi,
+                         limbah_cair.nama_limbah,
+                         limbah_cair.kode_limbah,
+                         limbah_cair.timbulan,
+                         limbah_cair.satuan,
+                         limbah_cair.bentuk_fisik,
+                         limbah_cair.status,
+                         limbah_cair.rejection_reason as tps_catatan,
+                         limbah_cair.reviewed_at as tps_reviewed_at,
+                         users.nama_lengkap as user_nama,
+                         "limbah_cair" as type')
+                ->join('users', 'users.id = limbah_cair.id_user', 'left')
+                ->whereIn('limbah_cair.status', ['disetujui_tps', 'ditolak_tps'])
+                ->get()
+                ->getResultArray();
+            
             // Combine and sort
-            $allReviewed = array_merge($wasteReviewed, $limbahB3Reviewed);
+            $allReviewed = array_merge($wasteReviewed, $limbahB3Reviewed, $limbahCairReviewed);
             
             // Sort by tps_reviewed_at descending, limit 20
             usort($allReviewed, function($a, $b) {
@@ -482,7 +702,7 @@ class LaporanMasukService
         try {
             $today = date('Y-m-d');
             
-            // Count pending waste and limbah_b3
+            // Count pending waste, limbah_b3, and limbah_cair
             $pendingWaste = $this->wasteModel
                 ->where('status', 'dikirim_ke_tps')
                 ->countAllResults();
@@ -491,7 +711,11 @@ class LaporanMasukService
                 ->where('status', 'dikirim_ke_tps')
                 ->countAllResults();
             
-            // Count approved waste and limbah_b3 today
+            $pendingLimbahCair = $this->limbahCairModel
+                ->where('status', 'dikirim_ke_tps')
+                ->countAllResults();
+            
+            // Count approved waste, limbah_b3, and limbah_cair today
             $approvedWasteToday = $this->wasteModel
                 ->where('status', 'disetujui_tps')
                 ->where('DATE(tps_reviewed_at)', $today)
@@ -502,7 +726,12 @@ class LaporanMasukService
                 ->where('DATE(tanggal_input)', $today)
                 ->countAllResults();
             
-            // Count rejected waste and limbah_b3 today
+            $approvedLimbahCairToday = $this->limbahCairModel
+                ->where('status', 'disetujui_tps')
+                ->where('DATE(reviewed_at)', $today)
+                ->countAllResults();
+            
+            // Count rejected waste, limbah_b3, and limbah_cair today
             $rejectedWasteToday = $this->wasteModel
                 ->where('status', 'ditolak_tps')
                 ->where('DATE(tps_reviewed_at)', $today)
@@ -513,15 +742,20 @@ class LaporanMasukService
                 ->where('DATE(tanggal_input)', $today)
                 ->countAllResults();
             
-            // Count total reviewed for this user (waste only, limbah_b3 tracking to be added)
+            $rejectedLimbahCairToday = $this->limbahCairModel
+                ->where('status', 'ditolak_tps')
+                ->where('DATE(reviewed_at)', $today)
+                ->countAllResults();
+            
+            // Count total reviewed for this user (waste only, limbah_b3 and limbah_cair tracking to be added)
             $totalReviewed = $this->wasteModel
                 ->where('tps_reviewed_by', session()->get('user')['id'])
                 ->countAllResults();
             
             return [
-                'pending_count' => $pendingWaste + $pendingLimbahB3,
-                'approved_today' => $approvedWasteToday + $approvedLimbahB3Today,
-                'rejected_today' => $rejectedWasteToday + $rejectedLimbahB3Today,
+                'pending_count' => $pendingWaste + $pendingLimbahB3 + $pendingLimbahCair,
+                'approved_today' => $approvedWasteToday + $approvedLimbahB3Today + $approvedLimbahCairToday,
+                'rejected_today' => $rejectedWasteToday + $rejectedLimbahB3Today + $rejectedLimbahCairToday,
                 'total_reviewed' => $totalReviewed
             ];
         } catch (\Exception $e) {

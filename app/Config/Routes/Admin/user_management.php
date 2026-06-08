@@ -8,7 +8,6 @@
 $routes->get('user-management', 'Admin\\UserManagement::index');
 $routes->get('user-management/get/(:num)', 'Admin\\UserManagement::getUser/$1');
 $routes->get('user-management/user-log/(:num)', 'Admin\\UserManagement::userLog/$1');
-$routes->get('user-management/export-user-log/(:num)', 'Admin\\UserManagement::exportUserLog/$1');
 $routes->post('user-management/delete-log-entry', 'Admin\\UserManagement::deleteLogEntry');
 $routes->post('user-management/bulk-delete-log', 'Admin\\UserManagement::bulkDeleteLog');
 $routes->post('user-management/create', 'Admin\\UserManagement::create');

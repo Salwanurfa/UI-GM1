@@ -41,11 +41,127 @@ class Dashboard extends BaseController
 
     /**
      * Get dashboard statistics
+     * Updated to show TOTAL ACCUMULATION from all time
+     * FIXED: Dynamic category matching from database
      */
     private function getDashboardStats()
     {
         $userId = session()->get('user')['id'];
-        return $this->transportStatsModel->getStatsSummary($userId);
+        $db = \Config\Database::connect();
+        
+        // Get basic stats (includes all time totals)
+        $basicStats = $this->transportStatsModel->getStatsSummary($userId);
+        
+        // Get stats by category - ALL TIME (NO DATE FILTER)
+        // FIXED: Use dynamic category matching instead of hardcoded names
+        
+        // Roda Empat - Match categories containing: Mobil, M1, M2, M3, Bus, Roda Empat
+        $rodaEmpatCategories = $db->table('transport_categories')
+            ->where('status_aktif', 1)
+            ->groupStart()
+                ->like('nama_kategori', 'Mobil', 'both')
+                ->orLike('nama_kategori', 'M1', 'both')
+                ->orLike('nama_kategori', 'M2', 'both')
+                ->orLike('nama_kategori', 'M3', 'both')
+                ->orLike('nama_kategori', 'Bus', 'both')
+                ->orLike('nama_kategori', 'Roda Empat', 'both')
+            ->groupEnd()
+            ->select('nama_kategori')
+            ->get()
+            ->getResultArray();
+        
+        $rodaEmpatNames = array_column($rodaEmpatCategories, 'nama_kategori');
+        
+        $rodaEmpat = 0;
+        if (!empty($rodaEmpatNames)) {
+            $rodaEmpatQuery = $db->table('transport_stats')
+                ->where('input_by', $userId)
+                ->whereIn('kategori_kendaraan', $rodaEmpatNames)
+                ->selectSum('jumlah_total')
+                ->get()
+                ->getRow();
+            $rodaEmpat = $rodaEmpatQuery->jumlah_total ?? 0;
+        }
+        
+        // Roda Dua - Match categories containing: Motor, Sepeda Motor, Kategori L, Roda Dua
+        $rodaDuaCategories = $db->table('transport_categories')
+            ->where('status_aktif', 1)
+            ->groupStart()
+                ->like('nama_kategori', 'Motor', 'both')
+                ->orLike('nama_kategori', 'Kategori L', 'both')
+                ->orLike('nama_kategori', 'Roda Dua', 'both')
+            ->groupEnd()
+            ->notLike('nama_kategori', 'Tidak Bermotor', 'both') // Exclude non-motorized
+            ->select('nama_kategori')
+            ->get()
+            ->getResultArray();
+        
+        $rodaDuaNames = array_column($rodaDuaCategories, 'nama_kategori');
+        
+        $rodaDua = 0;
+        if (!empty($rodaDuaNames)) {
+            $rodaDuaQuery = $db->table('transport_stats')
+                ->where('input_by', $userId)
+                ->whereIn('kategori_kendaraan', $rodaDuaNames)
+                ->selectSum('jumlah_total')
+                ->get()
+                ->getRow();
+            $rodaDua = $rodaDuaQuery->jumlah_total ?? 0;
+        }
+        
+        // Sepeda/Non-BBM - Match categories containing: Sepeda (non-motor), or fuel type Non-BBM
+        $sepedaCategories = $db->table('transport_categories')
+            ->where('status_aktif', 1)
+            ->groupStart()
+                ->like('nama_kategori', 'Sepeda', 'both')
+                ->orLike('nama_kategori', 'Tidak Bermotor', 'both')
+            ->groupEnd()
+            ->notLike('nama_kategori', 'Motor', 'both') // Exclude motorized
+            ->select('nama_kategori')
+            ->get()
+            ->getResultArray();
+        
+        $sepedaNames = array_column($sepedaCategories, 'nama_kategori');
+        
+        // Count by category OR by fuel type (Non-BBM)
+        $sepeda = 0;
+        
+        // Count by category
+        if (!empty($sepedaNames)) {
+            $sepedaQuery = $db->table('transport_stats')
+                ->where('input_by', $userId)
+                ->whereIn('kategori_kendaraan', $sepedaNames)
+                ->selectSum('jumlah_total')
+                ->get()
+                ->getRow();
+            $sepeda += $sepedaQuery->jumlah_total ?? 0;
+        }
+        
+        // Also count by fuel type (Non-BBM)
+        $nonBBMQuery = $db->table('transport_stats')
+            ->where('input_by', $userId)
+            ->where('jenis_bahan_bakar', 'Non-BBM')
+            ->selectSum('jumlah_total')
+            ->get()
+            ->getRow();
+        $sepeda += $nonBBMQuery->jumlah_total ?? 0;
+        
+        return [
+            // Entry counts (by time period)
+            'today_entries' => $basicStats['today_entries'] ?? 0,
+            'week_entries' => $basicStats['week_entries'] ?? 0,
+            'month_entries' => $basicStats['month_entries'] ?? 0,
+            
+            // Total vehicles - ALL TIME ACCUMULATION
+            'total_vehicles_all_time' => $basicStats['total_vehicles_all_time'] ?? 0,
+            'total_vehicles_month' => $basicStats['total_vehicles_month'] ?? 0,
+            'total_vehicles_today' => $basicStats['total_vehicles_today'] ?? 0,
+            
+            // Category breakdown - ALL TIME ACCUMULATION (FIXED: Dynamic matching)
+            'roda_empat' => $rodaEmpat,
+            'roda_dua' => $rodaDua,
+            'sepeda' => $sepeda,
+        ];
     }
 
     /**
@@ -108,7 +224,23 @@ class Dashboard extends BaseController
             'generated_at' => date('d/m/Y H:i:s')
         ];
 
-        return view('security/export_pdf_stats', $exportData);
+        // Generate HTML from view
+        $html = view('security/export_pdf_stats', $exportData);
+
+        // Configure Dompdf
+        $options = new \Dompdf\Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+        $options->set('defaultFont', 'Arial');
+        
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        // Output PDF
+        $filename = 'Laporan_Statistik_Transportasi_' . date('Y-m-d_H-i-s') . '.pdf';
+        $dompdf->stream($filename, ['Attachment' => true]);
     }
 
     /**

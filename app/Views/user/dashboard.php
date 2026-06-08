@@ -228,6 +228,9 @@ helper('feature');
                     <a href="<?= base_url('/user/waste/export-pdf') ?>" class="btn btn-danger btn-sm" target="_blank">
                         <i class="fas fa-file-pdf"></i> Export PDF
                     </a>
+                    <a href="<?= base_url('/user/waste/export-excel') ?>" class="btn btn-success btn-sm">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -311,7 +314,7 @@ helper('feature');
         <?php endif; ?>
 
         <!-- Limbah B3 Summary - Tabel Daftar Limbah B3 -->
-        <div class="card">
+        <div class="card mt-4">
             <div class="card-header">
                 <i class="fas fa-skull-crossbones"></i>
                 <h3>List Data Limbah B3</h3>
@@ -397,6 +400,92 @@ helper('feature');
             </div>
         </div>
 
+        <!-- Limbah Cair Summary - Tabel Daftar Limbah Cair -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-skull-crossbones"></i>
+                <h3>List Data Limbah Cair</h3>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <a href="<?= base_url('/user/limbah-cair') ?>" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Input Data
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <?php 
+                $limbah_cair_list = $limbah_cair_list ?? [];
+                if (!empty($limbah_cair_list)): 
+                ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama Limbah</th>
+                                <th>Kode</th>
+                                <th>Timbulan</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($limbah_cair_list as $limbah): ?>
+                            <tr>
+                                <td><?= date('d/m/Y', strtotime($limbah['tanggal_input'])) ?></td>
+                                <td><?= esc($limbah['nama_limbah']) ?></td>
+                                <td><span class="badge bg-light text-dark"><?= esc($limbah['kode_limbah'] ?? '-') ?></span></td>
+                                <td><?= number_format($limbah['timbulan'], 2) ?> <?= esc($limbah['satuan']) ?></td>
+                                <td>
+                                    <?php
+                                    $statusClass = '';
+                                    $statusText = '';
+                                    switch($limbah['status']) {
+                                        case 'draft':
+                                            $statusClass = 'badge bg-secondary';
+                                            $statusText = 'Draft';
+                                            break;
+                                        case 'dikirim_ke_tps':
+                                            $statusClass = 'badge bg-warning';
+                                            $statusText = 'Menunggu Review TPS';
+                                            break;
+                                        case 'disetujui_tps':
+                                            $statusClass = 'badge bg-info';
+                                            $statusText = 'Disetujui TPS';
+                                            break;
+                                        case 'ditolak_tps':
+                                            $statusClass = 'badge bg-danger';
+                                            $statusText = 'Ditolak TPS';
+                                            break;
+                                        case 'disetujui_admin':
+                                            $statusClass = 'badge bg-success';
+                                            $statusText = 'Disetujui Admin';
+                                            break;
+                                        default:
+                                            $statusClass = 'badge bg-secondary';
+                                            $statusText = ucfirst($limbah['status']);
+                                    }
+                                    ?>
+                                    <span class="<?= $statusClass ?>"><?= $statusText ?></span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="<?= base_url('/user/limbah-cair') ?>" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Lihat Semua Data Limbah Cair
+                    </a>
+                </div>
+                <?php else: ?>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Belum ada data Limbah Cair. Mulai dengan menginput data baru.
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
         <!-- Waste Detail Modal -->
         <div class="modal fade" id="activityDetailModal" tabindex="-1">
             <div class="modal-dialog">

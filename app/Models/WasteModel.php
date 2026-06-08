@@ -65,6 +65,7 @@ class WasteModel extends Model
     // Validation
     protected $validationRules = [
         'unit_id' => 'required|integer',
+        'user_id' => 'required|integer',
         'tanggal' => 'required|valid_date',
         'jenis_sampah' => 'required|max_length[100]',
         'satuan' => 'required|max_length[10]',
@@ -77,6 +78,10 @@ class WasteModel extends Model
         'unit_id' => [
             'required' => 'Unit ID harus diisi',
             'integer' => 'Unit ID harus berupa angka'
+        ],
+        'user_id' => [
+            'required' => 'User ID harus diisi',
+            'integer' => 'User ID harus berupa angka'
         ],
         'tanggal' => [
             'required' => 'Tanggal harus diisi',

@@ -2,6 +2,22 @@
 Options All -Indexes
 
 # ----------------------------------------------------------------------
+# PHP Configuration for File Uploads
+# ----------------------------------------------------------------------
+<IfModule mod_php.c>
+    # Maximum file upload size (10MB)
+    php_value upload_max_filesize 10M
+    # Maximum POST data size (12MB to accommodate form data + file)
+    php_value post_max_size 12M
+    # Maximum execution time for uploads (5 minutes)
+    php_value max_execution_time 300
+    # Maximum input time (5 minutes)
+    php_value max_input_time 300
+    # Memory limit (64MB)
+    php_value memory_limit 64M
+</IfModule>
+
+# ----------------------------------------------------------------------
 # Rewrite engine
 # ----------------------------------------------------------------------
 

@@ -237,8 +237,10 @@
                                 <td>
                                     <?php if ($laporan['type'] === 'waste'): ?>
                                         <span class="badge bg-primary">Sampah</span>
-                                    <?php else: ?>
+                                    <?php elseif ($laporan['type'] === 'limbah_b3'): ?>
                                         <span class="badge bg-danger"><i class="fas fa-skull-crossbones"></i> Limbah B3</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-info"><i class="fas fa-tint"></i> Limbah Cair</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -328,8 +330,10 @@
                                 <td>
                                     <?php if ($laporan['type'] === 'waste'): ?>
                                         <span class="badge bg-primary">Sampah</span>
-                                    <?php else: ?>
+                                    <?php elseif ($laporan['type'] === 'limbah_b3'): ?>
                                         <span class="badge bg-danger"><i class="fas fa-skull-crossbones"></i> Limbah B3</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-info"><i class="fas fa-tint"></i> Limbah Cair</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -500,7 +504,7 @@
                             </div>
                             ` : ''}
                         `;
-                    } else {
+                    } else if (data.type === 'limbah_b3') {
                         // Limbah B3 detail view
                         html = `
                             <div class="row">
@@ -526,6 +530,54 @@
                                     <table class="table table-sm">
                                         <tr><td><strong>Bentuk Fisik:</strong></td><td>${data.bentuk_fisik || '-'}</td></tr>
                                         <tr><td><strong>Kemasan:</strong></td><td>${data.kemasan || '-'}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-calendar"></i> Informasi Waktu</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Tanggal Input:</strong></td><td>${new Date(data.tanggal_input).toLocaleString('id-ID')}</td></tr>
+                                        <tr><td><strong>Status:</strong></td><td><span class="badge bg-warning">${data.status}</span></td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                            ${data.keterangan ? `
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="text-primary"><i class="fas fa-sticky-note"></i> Keterangan</h6>
+                                    <p class="border p-3 rounded">${data.keterangan}</p>
+                                </div>
+                            </div>
+                            ` : ''}
+                        `;
+                    } else {
+                        // Limbah Cair detail view
+                        html = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-info"><i class="fas fa-user"></i> Informasi User</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Nama:</strong></td><td>${data.user_nama || 'N/A'}</td></tr>
+                                        <tr><td><strong>Email:</strong></td><td>${data.user_email || 'N/A'}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-info"><i class="fas fa-tint"></i> Informasi Limbah Cair</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Nama Limbah:</strong></td><td>${data.nama_limbah || 'N/A'}</td></tr>
+                                        <tr><td><strong>Kode:</strong></td><td>${data.kode_limbah || '-'}</td></tr>
+                                        <tr><td><strong>Timbulan:</strong></td><td>${parseFloat(data.timbulan || 0).toFixed(2)} ${data.satuan || 'L/bulan'}</td></tr>
+                                        <tr><td><strong>Lokasi:</strong></td><td>${data.lokasi || 'N/A'}</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-vial"></i> Parameter Analisa</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>pH:</strong></td><td>${data.ph || '-'}</td></tr>
+                                        <tr><td><strong>BOD:</strong></td><td>${data.bod ? parseFloat(data.bod).toFixed(2) + ' mg/L' : '-'}</td></tr>
+                                        <tr><td><strong>COD:</strong></td><td>${data.cod ? parseFloat(data.cod).toFixed(2) + ' mg/L' : '-'}</td></tr>
+                                        <tr><td><strong>TSS:</strong></td><td>${data.tss ? parseFloat(data.tss).toFixed(2) + ' mg/L' : '-'}</td></tr>
                                     </table>
                                 </div>
                                 <div class="col-md-6">

@@ -35,11 +35,13 @@ class LimbahB3Service
     }
 
     /**
-     * Ambil data lengkap untuk halaman index Limbah B3
+     * Ambil data lengkap untuk halaman index Limbah B3 dengan pagination
      * 
-     * @return array Data dengan keys: user, unit, limbah_list, master_list, stats
+     * @param int $perPage Jumlah item per halaman
+     * @param int $page Nomor halaman
+     * @return array Data dengan keys: user, unit, limbah_list, master_list, stats, pager
      */
-    public function getUserIndexData(): array
+    public function getUserIndexData(int $perPage = 3, int $page = 1): array
     {
         $session = session();
         $user = $session->get('user');
@@ -51,7 +53,28 @@ class LimbahB3Service
         $unitId = $user['id_user'] ?? null;
         $unit   = $unitId ? $this->unitModel->find($unitId) : null;
 
-        $limbahList = $this->limbahModel->getUserLimbah($user['id']);
+        // Use pagination for limbah list with group name 'limbah_b3'
+        // CRITICAL: JOIN dengan master_limbah_b3 agar nama_limbah dan kode_limbah muncul
+        $limbahList = $this->limbahModel
+            ->select('limbah_b3.*, 
+                      master_limbah_b3.nama_limbah, 
+                      master_limbah_b3.kode_limbah,
+                      master_limbah_b3.kategori_bahaya')
+            ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
+            ->where('limbah_b3.id_user', $user['id'])
+            ->orderBy('limbah_b3.tanggal_input', 'DESC')
+            ->paginate($perPage, 'limbah_b3');
+        
+        $pager = $this->limbahModel->pager;
+
+        // Debug logging
+        log_message('info', 'LimbahB3Service getUserIndexData:');
+        log_message('info', 'User ID: ' . $user['id']);
+        log_message('info', 'Per Page: ' . $perPage);
+        log_message('info', 'Current Page: ' . $page);
+        log_message('info', 'Total Records: ' . count($limbahList));
+        log_message('info', 'Pager Group: limbah_b3');
+
         $masterList = $this->getActiveMasterList();
 
         $stats = $this->getUserStats($user['id']);
@@ -62,6 +85,7 @@ class LimbahB3Service
             'limbah_list' => $limbahList,
             'master_list' => $masterList,
             'stats'       => $stats,
+            'pager'       => $pager,
         ];
     }
 
@@ -123,7 +147,10 @@ class LimbahB3Service
     {
         try {
             $query = $this->limbahModel
-                ->select('limbah_b3.*, master_limbah_b3.nama_limbah, master_limbah_b3.kode_limbah, master_limbah_b3.kategori_bahaya')
+                ->select('limbah_b3.*, 
+                          master_limbah_b3.nama_limbah, 
+                          master_limbah_b3.kode_limbah, 
+                          master_limbah_b3.kategori_bahaya')
                 ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
                 ->where('limbah_b3.id_user', $userId);
 
@@ -603,7 +630,9 @@ class LimbahB3Service
             
             // Ambil data limbah user dengan join ke master
             $limbahList = $this->limbahModel
-                ->select('limbah_b3.*, master_limbah_b3.nama_limbah, master_limbah_b3.kode_limbah')
+                ->select('limbah_b3.*, 
+                          master_limbah_b3.nama_limbah, 
+                          master_limbah_b3.kode_limbah')
                 ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
                 ->where('limbah_b3.id_user', $userId)
                 ->orderBy('limbah_b3.tanggal_input', 'DESC')
@@ -696,7 +725,9 @@ class LimbahB3Service
 
             // Ambil data limbah user dengan join ke master
             $limbahList = $this->limbahModel
-                ->select('limbah_b3.*, master_limbah_b3.nama_limbah, master_limbah_b3.kode_limbah')
+                ->select('limbah_b3.*, 
+                          master_limbah_b3.nama_limbah, 
+                          master_limbah_b3.kode_limbah')
                 ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
                 ->where('limbah_b3.id_user', $userId)
                 ->orderBy('limbah_b3.tanggal_input', 'DESC')

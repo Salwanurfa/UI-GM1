@@ -272,8 +272,6 @@
             }
         }
     </style>
-    <!-- Mobile Responsive CSS -->
-    <link href="<?= base_url('/css/mobile-responsive.css') ?>" rel="stylesheet">
 </head>
 
 <body>
@@ -459,8 +457,6 @@
             });
         });
     </script>
-    <!-- Mobile Menu JS -->
-    <script src="<?= base_url('/js/mobile-menu.js') ?>"></script>
 </body>
 
 </html>

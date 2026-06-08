@@ -11,12 +11,14 @@ class DashboardService
     protected $wasteModel;
     protected $unitModel;
     protected $limbahB3Model;
+    protected $limbahCairModel;
 
     public function __construct()
     {
         $this->wasteModel = new WasteModel();
         $this->unitModel = new UnitModel();
         $this->limbahB3Model = new LimbahB3Model();
+        $this->limbahCairModel = new \App\Models\LimbahCairModel();
     }
 
     public function getDashboardData(): array
@@ -40,6 +42,7 @@ class DashboardService
                 'wasteManagementSummary' => $this->getWasteManagementSummary($unitId),
                 'recent_activities' => $this->getRecentActivities($user['id'], $unitId),
                 'limbah_b3_list' => $this->getLimbahB3List($user['id']),
+                'limbah_cair_list' => $this->getLimbahCairList($user['id']),
                 'feature_data' => $this->getFeatureData()
             ];
         } catch (\Exception $e) {
@@ -54,6 +57,7 @@ class DashboardService
                 'wasteManagementSummary' => [],
                 'recent_activities' => [],
                 'limbah_b3_list' => [],
+                'limbah_cair_list' => [],
                 'feature_data' => []
             ];
         }
@@ -501,7 +505,7 @@ class DashboardService
 
     /**
      * Ambil daftar Limbah B3 milik user untuk dashboard
-     * Limit ke 10 records terbaru
+     * Menampilkan SEMUA data tanpa batasan
      * Include kode_limbah dari master_limbah_b3
      */
     private function getLimbahB3List(int $userId): array
@@ -512,10 +516,27 @@ class DashboardService
                 ->join('master_limbah_b3', 'master_limbah_b3.id = limbah_b3.master_b3_id', 'left')
                 ->where('limbah_b3.id_user', $userId)
                 ->orderBy('limbah_b3.tanggal_input', 'DESC')
-                ->limit(10)
                 ->findAll();
         } catch (\Exception $e) {
             log_message('error', 'Error getting limbah B3 list: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Ambil daftar Limbah Cair milik user untuk dashboard
+     * Limit ke 10 records terbaru
+     */
+    private function getLimbahCairList(int $userId): array
+    {
+        try {
+            return $this->limbahCairModel
+                ->where('id_user', $userId)
+                ->orderBy('tanggal_input', 'DESC')
+                ->limit(10)
+                ->findAll();
+        } catch (\Exception $e) {
+            log_message('error', 'Error getting limbah cair list: ' . $e->getMessage());
             return [];
         }
     }
